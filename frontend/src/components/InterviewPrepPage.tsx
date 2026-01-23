@@ -53,7 +53,7 @@ export default function InterviewPrepPage({
   // Custom interview form state
   const [customName, setCustomName] = useState('');
   const [customObjective, setCustomObjective] = useState('');
-  const [selectedInterviewer, setSelectedInterviewer] = useState<number>(1);
+  const [selectedInterviewer, setSelectedInterviewer] = useState<number | null>(null);
   const [questionCount, setQuestionCount] = useState(5);
   const [duration, setDuration] = useState('10');
   const [isGeneratingObjective, setIsGeneratingObjective] = useState(false);
@@ -76,6 +76,10 @@ export default function InterviewPrepPage({
       ]);
       
       setInterviewers(interviewersRes.interviewers);
+      // Set the first interviewer as selected if available
+      if (interviewersRes.interviewers.length > 0) {
+        setSelectedInterviewer(interviewersRes.interviewers[0].id);
+      }
       setInterviews(interviewsRes.interviews);
       setInterviewHistory(historyRes.responses);
     } catch (error) {
@@ -130,15 +134,8 @@ export default function InterviewPrepPage({
 
   // Handle starting interview from modal (works for both job-based and custom)
   const handleStartInterviewFromModal = async () => {
-    // For job-based interviews, we don't need customObjective as it's generated on backend
-    if (!userProfile?.email || !customName) {
-      toast.error('Please fill in the interview name');
-      return;
-    }
-    
-    // For custom interviews, objective is required
-    if (!selectedJob && !customObjective) {
-      toast.error('Please fill in the objective');
+    if (!userProfile?.email || !customName || !customObjective) {
+      toast.error('Please fill in all required fields');
       return;
     }
     
@@ -696,53 +693,52 @@ export default function InterviewPrepPage({
                   Choose Your Interviewer
                 </label>
                 {interviewers.length > 0 ? (
-                  <div className="grid grid-cols-2 gap-3">
-                    {interviewers.map((interviewer) => (
-                      <button
-                        key={interviewer.id}
-                        type="button"
-                        onClick={() => setSelectedInterviewer(interviewer.id)}
-                        className={`p-4 rounded-xl border-2 text-left transition-all ${
-                          selectedInterviewer === interviewer.id
-                            ? 'border-blue-500 bg-blue-50 shadow-md'
-                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold text-white ${
-                            interviewer.name.includes('Lisa') ? 'bg-gradient-to-br from-pink-500 to-purple-600' : 'bg-gradient-to-br from-blue-500 to-indigo-600'
-                          }`}>
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    {interviewers.map((interviewer) => {
+                      const isSelected = selectedInterviewer === interviewer.id;
+                      return (
+                        <div
+                          key={interviewer.id}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setSelectedInterviewer(interviewer.id);
+                          }}
+                          style={{
+                            flex: 1,
+                            padding: '12px',
+                            borderRadius: '12px',
+                            border: isSelected ? '2px solid #3b82f6' : '2px solid #e5e7eb',
+                            backgroundColor: isSelected ? '#eff6ff' : '#ffffff',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            textAlign: 'center',
+                          }}
+                        >
+                          <div style={{
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '16px',
+                            fontWeight: 'bold',
+                            color: 'white',
+                            background: interviewer.name.includes('Lisa') 
+                              ? 'linear-gradient(135deg, #ec4899, #9333ea)' 
+                              : 'linear-gradient(135deg, #3b82f6, #6366f1)',
+                            margin: '0 auto 8px',
+                          }}>
                             {interviewer.name.charAt(0)}
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-gray-900">{interviewer.name}</p>
-                            <p className="text-xs text-gray-500 truncate">{interviewer.description}</p>
-                          </div>
-                          {selectedInterviewer === interviewer.id && (
-                            <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
-                              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                              </svg>
-                            </div>
+                          <p style={{ fontWeight: 600, color: '#111827', margin: 0, fontSize: '14px' }}>{interviewer.name}</p>
+                          {isSelected && (
+                            <span style={{ fontSize: '11px', color: '#3b82f6', marginTop: '4px', display: 'block' }}>✓ Selected</span>
                           )}
                         </div>
-                        {/* Skill bars */}
-                        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                          <div>
-                            <span className="text-gray-500">Empathy</span>
-                            <div className="h-1.5 bg-gray-200 rounded-full mt-0.5">
-                              <div className="h-full bg-pink-500 rounded-full" style={{ width: `${interviewer.empathy * 10}%` }} />
-                            </div>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Exploration</span>
-                            <div className="h-1.5 bg-gray-200 rounded-full mt-0.5">
-                              <div className="h-full bg-blue-500 rounded-full" style={{ width: `${interviewer.exploration * 10}%` }} />
-                            </div>
-                          </div>
-                        </div>
-                      </button>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="p-4 bg-gray-50 rounded-lg text-center text-gray-500 text-sm">
