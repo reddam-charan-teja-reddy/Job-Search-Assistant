@@ -1,8 +1,25 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, User, LogOut, Camera, Mail, Phone, MapPin, Briefcase, GraduationCap, Award, FolderKanban, FileText } from 'lucide-react';
+import {
+  ArrowLeft,
+  User,
+  LogOut,
+  Camera,
+  Mail,
+  Phone,
+  MapPin,
+  Briefcase,
+  GraduationCap,
+  Award,
+  FolderKanban,
+  FileText,
+  Plus,
+  X,
+  Save,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { UserProfile } from '../App';
+import { ThemeToggle } from './ThemeToggle';
 
 interface ProfilePageProps {
   userProfile: UserProfile;
@@ -10,7 +27,11 @@ interface ProfilePageProps {
   signOut: () => void;
 }
 
-export default function ProfilePage({ userProfile, updateProfile, signOut }: ProfilePageProps) {
+export default function ProfilePage({
+  userProfile,
+  updateProfile,
+  signOut,
+}: ProfilePageProps) {
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState(userProfile);
@@ -47,7 +68,10 @@ export default function ProfilePage({ userProfile, updateProfile, signOut }: Pro
   };
 
   const addExperience = () => {
-    if (experienceInput.trim() && !formData.experience.includes(experienceInput.trim())) {
+    if (
+      experienceInput.trim() &&
+      !formData.experience.includes(experienceInput.trim())
+    ) {
       setFormData({
         ...formData,
         experience: [...formData.experience, experienceInput.trim()],
@@ -59,12 +83,17 @@ export default function ProfilePage({ userProfile, updateProfile, signOut }: Pro
   const removeExperience = (experienceToRemove: string) => {
     setFormData({
       ...formData,
-      experience: formData.experience.filter((experience) => experience !== experienceToRemove),
+      experience: formData.experience.filter(
+        (experience) => experience !== experienceToRemove
+      ),
     });
   };
 
   const addEducation = () => {
-    if (educationInput.trim() && !formData.education?.includes(educationInput.trim())) {
+    if (
+      educationInput.trim() &&
+      !formData.education?.includes(educationInput.trim())
+    ) {
       setFormData({
         ...formData,
         education: [...(formData.education || []), educationInput.trim()],
@@ -76,15 +105,25 @@ export default function ProfilePage({ userProfile, updateProfile, signOut }: Pro
   const removeEducation = (educationToRemove: string) => {
     setFormData({
       ...formData,
-      education: formData.education?.filter((education) => education !== educationToRemove),
+      education: formData.education?.filter(
+        (education) => education !== educationToRemove
+      ),
     });
   };
 
   const addCertification = () => {
-    if (certificationInput.trim() && !formData.certificationsAndAchievementsAndAwards?.includes(certificationInput.trim())) {
+    if (
+      certificationInput.trim() &&
+      !formData.certificationsAndAchievementsAndAwards?.includes(
+        certificationInput.trim()
+      )
+    ) {
       setFormData({
         ...formData,
-        certificationsAndAchievementsAndAwards: [...(formData.certificationsAndAchievementsAndAwards || []), certificationInput.trim()],
+        certificationsAndAchievementsAndAwards: [
+          ...(formData.certificationsAndAchievementsAndAwards || []),
+          certificationInput.trim(),
+        ],
       });
       setCertificationInput('');
     }
@@ -93,12 +132,18 @@ export default function ProfilePage({ userProfile, updateProfile, signOut }: Pro
   const removeCertification = (certificationToRemove: string) => {
     setFormData({
       ...formData,
-      certificationsAndAchievementsAndAwards: formData.certificationsAndAchievementsAndAwards?.filter((certification) => certification !== certificationToRemove),
+      certificationsAndAchievementsAndAwards:
+        formData.certificationsAndAchievementsAndAwards?.filter(
+          (certification) => certification !== certificationToRemove
+        ),
     });
   };
 
   const addProject = () => {
-    if (projectInput.trim() && !formData.projects?.includes(projectInput.trim())) {
+    if (
+      projectInput.trim() &&
+      !formData.projects?.includes(projectInput.trim())
+    ) {
       setFormData({
         ...formData,
         projects: [...(formData.projects || []), projectInput.trim()],
@@ -110,14 +155,16 @@ export default function ProfilePage({ userProfile, updateProfile, signOut }: Pro
   const removeProject = (projectToRemove: string) => {
     setFormData({
       ...formData,
-      projects: formData.projects?.filter((project) => project !== projectToRemove),
+      projects: formData.projects?.filter(
+        (project) => project !== projectToRemove
+      ),
     });
   };
 
   const handleSave = () => {
     updateProfile(formData);
     setIsEditing(false);
-    toast.success('Profile updated successfully!');
+    toast.success('Profile updated successfully');
   };
 
   const handleCancel = () => {
@@ -134,444 +181,400 @@ export default function ProfilePage({ userProfile, updateProfile, signOut }: Pro
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
+    <div className='flex flex-col min-h-screen bg-background text-foreground transition-colors'>
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+      <header className='sticky top-0 z-50 bg-background border-b border-border'>
+        <div className='max-w-5xl mx-auto px-6 h-16 flex items-center justify-between'>
           <button
             onClick={() => navigate('/home')}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            <span>Back to Home</span>
+            className='flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors'>
+            <ArrowLeft className='w-5 h-5' />
+            <span className="font-medium">Back</span>
           </button>
-          <h2 className="text-gray-900">Profile</h2>
-          <div className="w-[100px]" /> {/* Spacer for centering */}
+          <h2 className='text-lg font-semibold'>My Profile</h2>
+          <div className='flex items-center gap-2'>
+            <ThemeToggle />
+            {!isEditing && (
+              <button
+                onClick={handleSignOut}
+                className='p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-all'
+                title="Sign Out">
+                <LogOut className='w-5 h-5' />
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto px-6 py-8">
-        {/* Profile Card */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          {/* Cover */}
-          <div className="h-32 bg-gradient-to-r from-blue-600 to-indigo-600" />
+      <div className='flex-1 overflow-y-auto w-full'>
+        <div className='max-w-5xl mx-auto px-4 py-8 sm:px-6'>
+          {/* Profile Card */}
+          <div className='bg-card rounded-2xl shadow-xl border border-border/50 overflow-hidden relative'>
 
-          {/* Profile Info */}
-          <div className="px-8 pb-8">
-            {/* Profile Photo */}
-            <div className="relative -mt-16 mb-6">
-              <div className="w-32 h-32 rounded-full border-4 border-white bg-gray-300 flex items-center justify-center overflow-hidden">
-                {formData.profilePhoto ? (
-                  <img
-                    src={formData.profilePhoto}
-                    alt="Profile"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <User className="w-16 h-16 text-gray-600" />
-                )}
-              </div>
-              {isEditing && (
-                <button 
-                  aria-label="Change profile photo"
-                  className="absolute bottom-2 right-2 w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white hover:bg-blue-700 transition-colors"
-                >
-                  <Camera className="w-5 h-5" />
-                </button>
-              )}
+            {/* Cover Gradient */}
+            <div className='h-40 bg-gradient-to-r from-secondary to-primary/20 relative'>
+              <div className="absolute inset-0 bg-background/10 backdrop-blur-[2px]"></div>
             </div>
 
-            {/* Edit/Save Buttons */}
-            <div className="flex justify-end gap-3 mb-6">
-              {isEditing ? (
-                <>
-                  <button
-                    onClick={handleCancel}
-                    className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSave}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Save Changes
-                  </button>
-                </>
-              ) : (
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Edit Profile
-                </button>
-              )}
-            </div>
-
-            {/* Form Fields */}
-            <div className="space-y-6">
-              {/* Name */}
-              <div>
-                <label htmlFor="name" className="flex items-center gap-2 text-gray-700 mb-2">
-                  <User className="w-4 h-4" />
-                  Full Name
-                </label>
-                {isEditing ? (
-                  <input
-                    id="name"
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    aria-label="Full Name"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                  />
-                ) : (
-                  <p className="text-gray-900">{formData.name}</p>
-                )}
-              </div>
-
-              {/* Email */}
-              <div>
-                <label htmlFor="email" className="flex items-center gap-2 text-gray-700 mb-2">
-                  <Mail className="w-4 h-4" />
-                  Email
-                </label>
-                {isEditing ? (
-                  <input
-                    id="email"
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    aria-label="Email"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                  />
-                ) : (
-                  <p className="text-gray-900">{formData.email}</p>
-                )}
-              </div>
-
-              {/* Phone */}
-              <div>
-                <label htmlFor="phone" className="flex items-center gap-2 text-gray-700 mb-2">
-                  <Phone className="w-4 h-4" />
-                  Phone
-                </label>
-                {isEditing ? (
-                  <input
-                    id="phone"
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    aria-label="Phone"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                  />
-                ) : (
-                  <p className="text-gray-900">{formData.phone}</p>
-                )}
-              </div>
-
-              {/* Location */}
-              <div>
-                <label htmlFor="location" className="flex items-center gap-2 text-gray-700 mb-2">
-                  <MapPin className="w-4 h-4" />
-                  Location
-                </label>
-                {isEditing ? (
-                  <input
-                    id="location"
-                    type="text"
-                    name="location"
-                    value={formData.location}
-                    onChange={handleInputChange}
-                    aria-label="Location"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                  />
-                ) : (
-                  <p className="text-gray-900">{formData.location}</p>
-                )}
-              </div>
-
-              {/* Profile Summary */}
-              <div>
-                <label htmlFor="profile_summary" className="flex items-center gap-2 text-gray-700 mb-2">
-                  <FileText className="w-4 h-4" />
-                  Profile Summary
-                </label>
-                {isEditing ? (
-                  <textarea
-                    id="profile_summary"
-                    name="profile_summary"
-                    value={formData.profile_summary}
-                    onChange={handleInputChange}
-                    rows={4}
-                    aria-label="Profile Summary"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none"
-                  />
-                ) : (
-                  <p className="text-gray-900 whitespace-pre-line">{formData.profile_summary}</p>
-                )}
-              </div>
-
-              {/* Skills */}
-              <div>
-                <label className="flex items-center gap-2 text-gray-700 mb-2">
-                  <Briefcase className="w-4 h-4" />
-                  Skills
-                </label>
-                {isEditing && (
-                  <div className="flex gap-2 mb-3">
-                    <input
-                      type="text"
-                      value={skillInput}
-                      onChange={(e) => setSkillInput(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addSkill())}
-                      placeholder="Add a skill"
-                      aria-label="Add a skill"
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                    />
+            <div className='px-6 sm:px-10 pb-10'>
+              {/* Header Group with Avatar and Main Actions */}
+              <div className="flex flex-col sm:flex-row items-end sm:items-center justify-between gap-4 -mt-12 mb-8 relative z-10">
+                <div className="relative group">
+                  <div className='w-32 h-32 rounded-full border-4 border-card bg-muted flex items-center justify-center overflow-hidden shadow-2xl'>
+                    {formData.profilePhoto ? (
+                      <img
+                        src={formData.profilePhoto}
+                        alt='Profile'
+                        className='w-full h-full object-cover'
+                      />
+                    ) : (
+                      <User className='w-12 h-12 text-muted-foreground' />
+                    )}
+                  </div>
+                  {isEditing && (
                     <button
-                      onClick={addSkill}
-                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      className='absolute bottom-0 right-0 p-2.5 bg-primary text-primary-foreground rounded-full shadow-lg hover:bg-primary/90 transition-transform active:scale-95'
+                      title="Upload Photo"
                     >
-                      Add
+                      <Camera className='w-5 h-5' />
                     </button>
-                  </div>
-                )}
-                <div className="flex flex-wrap gap-2">
-                  {formData.skills.map((skill) => (
-                    <span
-                      key={skill}
-                      className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm flex items-center gap-2"
-                    >
-                      {skill}
-                      {isEditing && (
-                        <button
-                          onClick={() => removeSkill(skill)}
-                          className="hover:text-blue-900"
-                        >
-                          ×
-                        </button>
-                      )}
-                    </span>
-                  ))}
+                  )}
                 </div>
-              </div>
 
-              {/* Experience */}
-              <div>
-                <label className="flex items-center gap-2 text-gray-700 mb-2">
-                  <Briefcase className="w-4 h-4" />
-                  Experience
-                </label>
-                {isEditing && (
-                  <div className="flex gap-2 mb-3">
-                    <input
-                      type="text"
-                      value={experienceInput}
-                      onChange={(e) => setExperienceInput(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addExperience())}
-                      placeholder="Add experience"
-                      aria-label="Add experience"
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                    />
+                <div className="flex gap-3">
+                  {isEditing ? (
+                    <>
+                      <button
+                        onClick={handleCancel}
+                        className='px-4 py-2 rounded-xl border border-border bg-background hover:bg-muted text-foreground font-medium transition-colors'>
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSave}
+                        className='px-6 py-2 rounded-xl bg-primary text-primary-foreground font-semibold hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all flex items-center gap-2'>
+                        <Save className="w-4 h-4" />
+                        Save Changes
+                      </button>
+                    </>
+                  ) : (
                     <button
-                      onClick={addExperience}
-                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      Add
+                      onClick={() => setIsEditing(true)}
+                      className='px-6 py-2 rounded-xl bg-primary text-primary-foreground font-semibold hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all'>
+                      Edit Profile
                     </button>
-                  </div>
-                )}
-                <div className="space-y-2">
-                  {formData.experience.map((exp, index) => (
-                    <div key={index} className="flex items-start justify-between bg-gray-50 p-3 rounded-lg">
-                      <p className="text-gray-900 flex-1">{exp}</p>
-                      {isEditing && (
-                        <button
-                          onClick={() => removeExperience(exp)}
-                          className="text-gray-500 hover:text-red-600 ml-2"
-                        >
-                          ×
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                  )}
                 </div>
               </div>
 
-              {/* Education */}
-              {(formData.education && formData.education.length > 0) || isEditing ? (
-                <div>
-                  <label className="flex items-center gap-2 text-gray-700 mb-2">
-                    <GraduationCap className="w-4 h-4" />
-                    Education
-                  </label>
-                  {isEditing && (
-                    <div className="flex gap-2 mb-3">
+              {/* Form Grid */}
+              <div className='grid gap-8'>
+
+                {/* Personal Info Section */}
+                <div className="grid md:grid-cols-2 gap-6 animate-fadeIn">
+                  {/* Name */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <User className="w-3.5 h-3.5" /> Full Name
+                    </label>
+                    {isEditing ? (
                       <input
                         type="text"
-                        value={educationInput}
-                        onChange={(e) => setEducationInput(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addEducation())}
-                        placeholder="Add education"
-                        aria-label="Add education"
-                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                        name="name"
+                        value={formData.name}
+                        onChange={handleInputChange}
+                        className="w-full bg-background border border-border rounded-lg px-4 py-3 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
                       />
-                      <button
-                        onClick={addEducation}
-                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                      >
-                        Add
-                      </button>
-                    </div>
-                  )}
-                  <div className="space-y-2">
-                    {formData.education?.map((edu, index) => (
-                      <div key={index} className="flex items-start justify-between bg-gray-50 p-3 rounded-lg">
-                        <p className="text-gray-900 flex-1">{edu}</p>
-                        {isEditing && (
-                          <button
-                            onClick={() => removeEducation(edu)}
-                            className="text-gray-500 hover:text-red-600 ml-2"
-                          >
-                            ×
-                          </button>
-                        )}
-                      </div>
-                    ))}
+                    ) : (
+                      <p className="text-xl font-semibold text-foreground">{formData.name}</p>
+                    )}
                   </div>
-                </div>
-              ) : null}
 
-              {/* Certifications and Achievements */}
-              {(formData.certificationsAndAchievementsAndAwards && formData.certificationsAndAchievementsAndAwards.length > 0) || isEditing ? (
-                <div>
-                  <label className="flex items-center gap-2 text-gray-700 mb-2">
-                    <Award className="w-4 h-4" />
-                    Certifications and Achievements and Awards
-                  </label>
-                  {isEditing && (
-                    <div className="flex gap-2 mb-3">
+                  {/* Email */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <Mail className="w-3.5 h-3.5" /> Email
+                    </label>
+                    {isEditing ? (
+                      <input
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        className="w-full bg-background border border-border rounded-lg px-4 py-3 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                      />
+                    ) : (
+                      <p className="text-lg text-foreground">{formData.email}</p>
+                    )}
+                  </div>
+
+                  {/* Phone */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <Phone className="w-3.5 h-3.5" /> Phone
+                    </label>
+                    {isEditing ? (
+                      <input
+                        type="tel"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleInputChange}
+                        className="w-full bg-background border border-border rounded-lg px-4 py-3 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                      />
+                    ) : (
+                      <p className="text-lg text-foreground">{formData.location}</p>
+                    )}
+                  </div>
+
+                  {/* Location */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5" /> Location
+                    </label>
+                    {isEditing ? (
                       <input
                         type="text"
-                        value={certificationInput}
-                        onChange={(e) => setCertificationInput(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addCertification())}
-                        placeholder="Add certification"
-                        aria-label="Add certification"
-                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                        name="location"
+                        value={formData.location}
+                        onChange={handleInputChange}
+                        className="w-full bg-background border border-border rounded-lg px-4 py-3 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
                       />
-                      <button
-                        onClick={addCertification}
-                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                      >
-                        Add
-                      </button>
-                    </div>
-                  )}
-                  <div className="space-y-2">
-                    {formData.certificationsAndAchievementsAndAwards?.map((cert, index) => (
-                      <div key={index} className="flex items-start justify-between bg-gray-50 p-3 rounded-lg">
-                        <p className="text-gray-900 flex-1">{cert}</p>
-                        {isEditing && (
-                          <button
-                            onClick={() => removeCertification(cert)}
-                            className="text-gray-500 hover:text-red-600 ml-2"
-                          >
-                            ×
-                          </button>
-                        )}
-                      </div>
-                    ))}
+                    ) : (
+                      <p className="text-lg text-foreground">{formData.location}</p>
+                    )}
                   </div>
                 </div>
-              ) : null}
 
-              {/* Projects */}
-              {(formData.projects && formData.projects.length > 0) || isEditing ? (
-                <div>
-                  <label className="flex items-center gap-2 text-gray-700 mb-2">
-                    <FolderKanban className="w-4 h-4" />
-                    Projects
-                  </label>
-                  {isEditing && (
-                    <div className="flex gap-2 mb-3">
-                      <input
-                        type="text"
-                        value={projectInput}
-                        onChange={(e) => setProjectInput(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addProject())}
-                        placeholder="Add project"
-                        aria-label="Add project"
-                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                      />
-                      <button
-                        onClick={addProject}
-                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                      >
-                        Add
-                      </button>
-                    </div>
-                  )}
-                  <div className="space-y-2">
-                    {formData.projects?.map((project, index) => (
-                      <div key={index} className="flex items-start justify-between bg-gray-50 p-3 rounded-lg">
-                        <p className="text-gray-900 flex-1">{project}</p>
-                        {isEditing && (
-                          <button
-                            onClick={() => removeProject(project)}
-                            className="text-gray-500 hover:text-red-600 ml-2"
-                          >
-                            ×
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
+                <div className="border-t border-border/50 my-2"></div>
 
-              {/* About */}
-              {(formData.about && formData.about.trim()) || isEditing ? (
-                <div>
-                  <label htmlFor="about" className="flex items-center gap-2 text-gray-700 mb-2">
-                    <User className="w-4 h-4" />
-                    About
+                {/* About Section */}
+                <div className="space-y-3">
+                  <label className="text-sm font-medium text-primary flex items-center gap-2">
+                    <FileText className="w-4 h-4" /> Profile Summary & About
                   </label>
                   {isEditing ? (
-                    <textarea
-                      id="about"
-                      name="about"
-                      value={formData.about}
-                      onChange={handleInputChange}
-                      rows={3}
-                      aria-label="About"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none"
-                    />
+                    <div className="space-y-4">
+                      <textarea
+                        name="profile_summary"
+                        value={formData.profile_summary}
+                        onChange={handleInputChange}
+                        rows={3}
+                        placeholder="Short professional summary..."
+                        className="w-full bg-background/50 border border-border rounded-xl px-4 py-3 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 resize-none"
+                      />
+                      <textarea
+                        name="about"
+                        value={formData.about || ''}
+                        onChange={handleInputChange}
+                        rows={4}
+                        placeholder="Detailed about me..."
+                        className="w-full bg-background/50 border border-border rounded-xl px-4 py-3 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 resize-none"
+                      />
+                    </div>
                   ) : (
-                    <p className="text-gray-900 whitespace-pre-line">{formData.about}</p>
+                    <div className="space-y-4">
+                      <div className="bg-secondary/20 p-5 rounded-xl border border-secondary/30">
+                        <p className="text-foreground leading-relaxed whitespace-pre-line">{formData.profile_summary}</p>
+                      </div>
+                      {formData.about && (
+                        <div className="text-muted-foreground leading-relaxed whitespace-pre-line px-1">
+                          {formData.about}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
-              ) : null}
-            </div>
 
-            {/* Sign Out */}
-            <div className="mt-8 pt-6 border-t border-gray-200">
-              <button
-                onClick={handleSignOut}
-                className="flex items-center gap-2 px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-              >
-                <LogOut className="w-5 h-5" />
-                Sign Out
-              </button>
+                {/* Tags Sections Grid */}
+                <div className="grid md:grid-cols-2 gap-8">
+
+                  {/* Skills */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium text-primary flex items-center gap-2">
+                        <Briefcase className="w-4 h-4" /> Skills
+                      </label>
+                    </div>
+
+                    {isEditing && (
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={skillInput}
+                          onChange={(e) => setSkillInput(e.target.value)}
+                          onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addSkill())}
+                          placeholder="Add a skill..."
+                          className="flex-1 bg-background/50 border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
+                        />
+                        <button
+                          onClick={addSkill}
+                          className="p-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors">
+                          <Plus className="w-5 h-5" />
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap gap-2">
+                      {formData.skills.map((skill) => (
+                        <span key={skill} className="px-3 py-1.5 bg-secondary/30 text-secondary-foreground border border-secondary/50 rounded-full text-sm font-medium flex items-center gap-1.5 animate-fadeIn">
+                          {skill}
+                          {isEditing && (
+                            <button onClick={() => removeSkill(skill)} className="hover:text-destructive transition-colors">
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Experience (Simplified List) */}
+                  <div className="space-y-4">
+                    <label className="text-sm font-medium text-primary flex items-center gap-2">
+                      <FolderKanban className="w-4 h-4" /> Experience
+                    </label>
+
+                    {isEditing && (
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={experienceInput}
+                          onChange={(e) => setExperienceInput(e.target.value)}
+                          onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addExperience())}
+                          placeholder="Add experience..."
+                          className="flex-1 bg-background/50 border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
+                        />
+                        <button onClick={addExperience} className="p-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors">
+                          <Plus className="w-5 h-5" />
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                      {formData.experience.map((exp, i) => (
+                        <div key={i} className="flex items-start justify-between p-3 rounded-lg bg-muted/30 border border-border/50 text-sm">
+                          <span className="text-foreground/90">{exp}</span>
+                          {isEditing && (
+                            <button onClick={() => removeExperience(exp)} className="text-muted-foreground hover:text-destructive">
+                              <X className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Additional Sections Collapsible or stacked */}
+                <div className="space-y-6 pt-4 border-t border-border/50">
+
+                  {/* Education */}
+                  <div className="space-y-4">
+                    <label className="text-sm font-medium text-primary flex items-center gap-2">
+                      <GraduationCap className="w-4 h-4" /> Education
+                    </label>
+                    {isEditing && (
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={educationInput}
+                          onChange={(e) => setEducationInput(e.target.value)}
+                          onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addEducation())}
+                          placeholder="Add education..."
+                          className="flex-1 bg-background/50 border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
+                        />
+                        <button onClick={addEducation} className="p-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors">
+                          <Plus className="w-5 h-5" />
+                        </button>
+                      </div>
+                    )}
+                    <div className="grid gap-2">
+                      {formData.education?.map((edu, i) => (
+                        <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50 text-sm">
+                          <span>{edu}</span>
+                          {isEditing && (
+                            <button onClick={() => removeEducation(edu)} className="text-muted-foreground hover:text-destructive">
+                              <X className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Certifications */}
+                  <div className="space-y-4">
+                    <label className="text-sm font-medium text-primary flex items-center gap-2">
+                      <Award className="w-4 h-4" /> Certifications & Awards
+                    </label>
+                    {isEditing && (
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={certificationInput}
+                          onChange={(e) => setCertificationInput(e.target.value)}
+                          onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addCertification())}
+                          placeholder="Add certification..."
+                          className="flex-1 bg-background/50 border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
+                        />
+                        <button onClick={addCertification} className="p-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors">
+                          <Plus className="w-5 h-5" />
+                        </button>
+                      </div>
+                    )}
+                    <div className="grid gap-2">
+                      {formData.certificationsAndAchievementsAndAwards?.map((cert, i) => (
+                        <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50 text-sm">
+                          <span>{cert}</span>
+                          {isEditing && (
+                            <button onClick={() => removeCertification(cert)} className="text-muted-foreground hover:text-destructive">
+                              <X className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Projects */}
+                  <div className="space-y-4">
+                    <label className="text-sm font-medium text-primary flex items-center gap-2">
+                      <FolderKanban className="w-4 h-4" /> Projects
+                    </label>
+                    {isEditing && (
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={projectInput}
+                          onChange={(e) => setProjectInput(e.target.value)}
+                          onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addProject())}
+                          placeholder="Add project..."
+                          className="flex-1 bg-background/50 border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary"
+                        />
+                        <button onClick={addProject} className="p-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors">
+                          <Plus className="w-5 h-5" />
+                        </button>
+                      </div>
+                    )}
+                    <div className="grid gap-2">
+                      {formData.projects?.map((proj, i) => (
+                        <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50 text-sm">
+                          <span>{proj}</span>
+                          {isEditing && (
+                            <button onClick={() => removeProject(proj)} className="text-muted-foreground hover:text-destructive">
+                              <X className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
             </div>
           </div>
         </div>
-      </div>
       </div>
     </div>
   );

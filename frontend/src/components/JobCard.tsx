@@ -7,7 +7,7 @@ import {
   MapPin,
   DollarSign,
   Briefcase,
-  ExternalLink,
+  ArrowRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Job } from '../App';
@@ -41,67 +41,27 @@ function ApplyConfirmationModal({
   const modalRoot = document.getElementById('modal-root') || document.body;
 
   return createPortal(
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 99999,
-        padding: '20px',
-      }}>
-      <div 
-        style={{ 
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          padding: '24px',
-          width: '100%',
-          maxWidth: '350px',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-        }}
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999] p-4 backdrop-blur-sm animate-fadeIn">
+      <div
+        className="bg-card w-full max-w-sm rounded-2xl p-6 shadow-2xl border border-secondary"
         onClick={(e) => e.stopPropagation()}>
-        <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#111827', marginBottom: '8px', textAlign: 'center' }}>
+        <h3 className="text-xl font-semibold text-foreground mb-2 text-center">
           Confirm Application
         </h3>
-        <p style={{ color: '#4B5563', marginBottom: '20px', textAlign: 'center', fontSize: '14px' }}>
-          Did you complete your application for{' '}
-          <span style={{ fontWeight: 500 }}>{job.title}</span> at{' '}
-          <span style={{ fontWeight: 500 }}>{job.company}</span>?
+        <p className="text-muted-foreground mb-6 text-center">
+          Did you successfully apply to <span className="text-primary font-medium">{job.title}</span>?
         </p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <div className="flex flex-col gap-3">
           <button
             onClick={onConfirm}
-            style={{
-              width: '100%',
-              padding: '14px 16px',
-              backgroundColor: '#16a34a',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '14px',
-              fontWeight: 500,
-              cursor: 'pointer',
-            }}>
-            Yes, I applied!
+            className="w-full py-3 bg-primary text-primary-foreground font-semibold rounded-xl hover:bg-primary/90 transition-all flex items-center justify-center gap-2">
+            <CheckCircle className="w-5 h-5" />
+            Yes, I Applied
           </button>
           <button
             onClick={onCancel}
-            style={{
-              width: '100%',
-              padding: '12px 16px',
-              backgroundColor: 'white',
-              color: '#374151',
-              border: '1px solid #D1D5DB',
-              borderRadius: '8px',
-              fontSize: '14px',
-              cursor: 'pointer',
-            }}>
-            No, I didn't apply
+            className="w-full py-3 bg-muted/50 text-foreground font-medium rounded-xl hover:bg-muted transition-all">
+            No, Not Yet
           </button>
         </div>
       </div>
@@ -126,10 +86,10 @@ export default function JobCard({
     e.stopPropagation();
     if (isSaved) {
       onUnsave(job);
-      toast.success('Job removed from saved!');
+      toast.success('Job removed from saved');
     } else {
       onSave(job);
-      toast.success('Job saved successfully!');
+      toast.success('Job saved');
     }
   };
 
@@ -140,21 +100,17 @@ export default function JobCard({
       return;
     }
 
-    // Open the job link in a new tab
     if (job.applyLink) {
       window.open(job.applyLink, '_blank');
     }
 
-    // Show confirmation modal
     setShowApplyConfirmation(true);
   };
 
   const handleConfirmApply = () => {
     onApply(job);
     setShowApplyConfirmation(false);
-    toast.success('Application recorded!', {
-      description: `You've applied to ${job.title} at ${job.company}`,
-    });
+    toast.success('Application recorded');
   };
 
   const handleCancelApply = () => {
@@ -166,106 +122,81 @@ export default function JobCard({
     onChoose(job);
   };
 
-  const handleCardClick = () => {
-    setShowDetailModal(true);
-  };
-
   return (
     <>
       <div
-        className='bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-shadow cursor-pointer'
-        onClick={handleCardClick}>
-        {/* Header */}
-        <div className='flex items-start justify-between mb-4'>
-          <div className='flex-1'>
-            <div className='flex items-center gap-2 mb-2'>
-              <h3 className='text-gray-900 font-medium'>{job.title}</h3>
-              {isApplied && (
-                <span className='px-2 py-1 bg-green-100 text-green-700 text-xs rounded'>
-                  Applied
-                </span>
-              )}
-              {isSaved && !isApplied && (
-                <span className='px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded'>
-                  Saved
-                </span>
-              )}
-            </div>
-            <p className='text-gray-700'>{job.company}</p>
+        className="group relative bg-card hover:bg-card/80 border border-border hover:border-primary/30 rounded-2xl p-5 transition-all duration-300 hover:shadow-lg cursor-pointer"
+        onClick={() => setShowDetailModal(true)}>
+
+        {/* Header Section */}
+        <div className="flex justify-between items-start mb-4">
+          <div className="flex-1 min-w-0 pr-4">
+            <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+              {job.title}
+            </h3>
+            <p className="text-muted-foreground text-sm font-medium truncate">
+              {job.company}
+            </p>
           </div>
           <button
             onClick={handleSaveToggle}
-            className={`p-2 rounded-lg transition-colors ${
-              isSaved
-                ? 'bg-blue-100 text-blue-600'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-            title={isSaved ? 'Unsave job' : 'Save job'}>
+            className={`p-2 rounded-full transition-all ${isSaved
+              ? 'text-primary bg-primary/10'
+              : 'text-muted-foreground/50 hover:text-foreground hover:bg-muted'
+              }`}
+            title={isSaved ? 'Unsave' : 'Save'}>
             {isSaved ? (
-              <BookmarkX className='w-5 h-5' />
+              <BookmarkX className="w-5 h-5 fill-current" />
             ) : (
-              <Bookmark className='w-5 h-5' />
+              <Bookmark className="w-5 h-5" />
             )}
           </button>
         </div>
 
-        {/* Job Details */}
-        <div className='space-y-2 mb-4'>
-          <div className='flex items-center gap-2 text-gray-600'>
-            <Briefcase className='w-4 h-4' />
-            <span className='text-sm'>{job.role}</span>
+        {/* Tags Row */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary/30 text-xs font-medium text-secondary-foreground border border-secondary/50">
+            <Briefcase className="w-3 h-3" />
+            {job.role}
           </div>
-          <div className='flex items-center gap-2 text-gray-600'>
-            <MapPin className='w-4 h-4' />
-            <span className='text-sm'>{job.location}</span>
-            {job.isRemote && (
-              <span className='px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded'>
-                Remote
-              </span>
-            )}
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary/30 text-xs font-medium text-secondary-foreground border border-secondary/50">
+            <MapPin className="w-3 h-3" />
+            {job.location}
           </div>
-          <div className='flex items-center gap-2 text-gray-600'>
-            <DollarSign className='w-4 h-4' />
-            <span className='text-sm'>{job.salary}</span>
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary/30 text-xs font-medium text-secondary-foreground border border-secondary/50">
+            <DollarSign className="w-3 h-3" />
+            {job.salary}
           </div>
+          {job.isRemote && (
+            <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-green-500/20 text-green-400 text-xs font-medium border border-green-500/30">
+              Remote
+            </span>
+          )}
         </div>
 
-        {/* Description */}
-        <p className='text-gray-600 text-sm mb-6 line-clamp-3'>
-          {job.description}
-        </p>
-
-        {/* Actions */}
-        <div className='flex gap-3'>
+        {/* Action Row - Only visible/highlighted on hover/focus in some designs, but keeping always visible for usability */}
+        <div className="flex items-center gap-3 pt-4 border-t border-border/50 mt-auto">
           <button
             onClick={handleChoose}
-            className='flex-1 px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors'>
-            Choose
+            className="flex-1 py-1.5 text-sm font-medium text-primary hover:text-primary/80 transition-colors flex items-center justify-center gap-1 group/btn"
+          >
+            Ask Advice
+            <ArrowRight className="w-4 h-4 transition-transform group-hover/btn:translate-x-1" />
           </button>
+
           <button
             onClick={handleApply}
             disabled={isApplied}
-            className={`flex-1 px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2 ${
-              isApplied
-                ? 'bg-green-100 text-green-700 cursor-not-allowed'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
-            }`}>
-            {isApplied ? (
-              <>
-                <CheckCircle className='w-4 h-4' />
-                Applied
-              </>
-            ) : (
-              <>
-                <ExternalLink className='w-4 h-4' />
-                Apply
-              </>
-            )}
+            className={`flex-1 py-2 px-4 rounded-xl text-sm font-semibold transition-all ${isApplied
+              ? 'bg-green-500/20 text-green-400 cursor-not-allowed border border-green-500/30'
+              : 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-primary/20'
+              }`}
+          >
+            {isApplied ? 'Applied' : 'Apply Now'}
           </button>
         </div>
       </div>
 
-      {/* Job Detail Modal */}
       <JobDetailModal
         job={job}
         isOpen={showDetailModal}
@@ -274,15 +205,12 @@ export default function JobCard({
         onUnsave={onUnsave}
         onApply={(j) => {
           onApply(j);
-          toast.success('Application recorded!', {
-            description: `You've applied to ${j.title} at ${j.company}`,
-          });
+          toast.success('Application recorded');
         }}
         isSaved={isSaved}
         isApplied={isApplied}
       />
 
-      {/* Apply Confirmation Modal */}
       <ApplyConfirmationModal
         isOpen={showApplyConfirmation}
         job={job}
@@ -292,3 +220,4 @@ export default function JobCard({
     </>
   );
 }
+

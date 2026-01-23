@@ -12,6 +12,7 @@ import ChatPage from './components/ChatPage';
 import ProfilePage from './components/ProfilePage';
 import InterviewPrepPage from './components/InterviewPrepPage';
 import InterviewRoomPage from './components/InterviewRoomPage';
+import { ThemeProvider } from './components/theme-provider';
 
 export interface UserProfile {
   name: string;
@@ -154,104 +155,106 @@ function App() {
   };
 
   return (
-    <Router>
-      <div className='min-h-screen bg-gray-50'>
-        <Toaster position='top-center' richColors />
-        <Routes>
-          <Route
-            path='/'
-            element={
-              !isOnboarded ? (
-                <OnboardingPage onComplete={completeOnboarding} />
-              ) : (
-                <Navigate to='/home' replace />
-              )
-            }
-          />
-          <Route
-            path='/home'
-            element={
-              isOnboarded ? (
-                <HomePage
-                  savedJobs={savedJobs}
-                  appliedJobs={appliedJobs}
-                  chats={chats}
-                  userProfile={userProfile}
-                  unsaveJob={unsaveJob}
-                  applyToJob={applyToJob}
-                  deleteChat={deleteChat}
-                />
-              ) : (
-                <Navigate to='/' replace />
-              )
-            }
-          />
-          <Route
-            path='/chat/:chatId?'
-            element={
-              isOnboarded && userProfile ? (
-                <ChatPage
-                  chats={chats}
-                  addChat={addChat}
-                  updateChat={updateChat}
-                  savedJobs={savedJobs}
-                  appliedJobs={appliedJobs}
-                  saveJob={saveJob}
-                  unsaveJob={unsaveJob}
-                  applyToJob={applyToJob}
-                  userEmail={userProfile.email}
-                />
-              ) : (
-                <Navigate to='/' replace />
-              )
-            }
-          />
-          <Route
-            path='/profile'
-            element={
-              isOnboarded && userProfile ? (
-                <ProfilePage
-                  userProfile={userProfile}
-                  updateProfile={updateProfile}
-                  signOut={signOut}
-                />
-              ) : (
-                <Navigate to='/' replace />
-              )
-            }
-          />
-          {/* Interview Prep Routes */}
-          <Route
-            path='/interview-prep'
-            element={
-              isOnboarded && userProfile ? (
-                <InterviewPrepPage
-                  savedJobs={savedJobs}
-                  appliedJobs={appliedJobs}
-                  userProfile={userProfile}
-                />
-              ) : (
-                <Navigate to='/' replace />
-              )
-            }
-          />
-          <Route
-            path='/interview/:interviewId'
-            element={
-              isOnboarded && userProfile ? (
-                <InterviewRoomPage userProfile={userProfile} />
-              ) : (
-                <Navigate to='/' replace />
-              )
-            }
-          />
-          {/* Redirect /dashboard to /home for compatibility */}
-          <Route path='/dashboard' element={<Navigate to='/home' replace />} />
-          {/* Catch all - redirect unknown routes to home */}
-          <Route path='*' element={<Navigate to='/home' replace />} />
-        </Routes>
-      </div>
-    </Router>
+    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+      <Router>
+        <div className='min-h-screen bg-background text-foreground'>
+          <Toaster position='top-center' richColors />
+          <Routes>
+            <Route
+              path='/'
+              element={
+                !isOnboarded ? (
+                  <OnboardingPage onComplete={completeOnboarding} />
+                ) : (
+                  <Navigate to='/home' replace />
+                )
+              }
+            />
+            <Route
+              path='/home'
+              element={
+                isOnboarded ? (
+                  <HomePage
+                    savedJobs={savedJobs}
+                    appliedJobs={appliedJobs}
+                    chats={chats}
+                    userProfile={userProfile}
+                    unsaveJob={unsaveJob}
+                    applyToJob={applyToJob}
+                    deleteChat={deleteChat}
+                  />
+                ) : (
+                  <Navigate to='/' replace />
+                )
+              }
+            />
+            <Route
+              path='/chat/:chatId?'
+              element={
+                isOnboarded && userProfile ? (
+                  <ChatPage
+                    chats={chats}
+                    addChat={addChat}
+                    updateChat={updateChat}
+                    savedJobs={savedJobs}
+                    appliedJobs={appliedJobs}
+                    saveJob={saveJob}
+                    unsaveJob={unsaveJob}
+                    applyToJob={applyToJob}
+                    userEmail={userProfile.email}
+                  />
+                ) : (
+                  <Navigate to='/' replace />
+                )
+              }
+            />
+            <Route
+              path='/profile'
+              element={
+                isOnboarded && userProfile ? (
+                  <ProfilePage
+                    userProfile={userProfile}
+                    updateProfile={updateProfile}
+                    signOut={signOut}
+                  />
+                ) : (
+                  <Navigate to='/' replace />
+                )
+              }
+            />
+            {/* Interview Prep Routes */}
+            <Route
+              path='/interview-prep'
+              element={
+                isOnboarded && userProfile ? (
+                  <InterviewPrepPage
+                    savedJobs={savedJobs}
+                    appliedJobs={appliedJobs}
+                    userProfile={userProfile}
+                  />
+                ) : (
+                  <Navigate to='/' replace />
+                )
+              }
+            />
+            <Route
+              path='/interview/:interviewId'
+              element={
+                isOnboarded && userProfile ? (
+                  <InterviewRoomPage userProfile={userProfile} />
+                ) : (
+                  <Navigate to='/' replace />
+                )
+              }
+            />
+            {/* Redirect /dashboard to /home for compatibility */}
+            <Route path='/dashboard' element={<Navigate to='/home' replace />} />
+            {/* Catch all - redirect unknown routes to home */}
+            <Route path='*' element={<Navigate to='/home' replace />} />
+          </Routes>
+        </div>
+      </Router>
+    </ThemeProvider>
   );
 }
 

@@ -3,15 +3,30 @@ import { useNavigate } from 'react-router-dom';
 import {
   MessageSquarePlus,
   User,
-  Briefcase,
-  BookmarkCheck,
-  MessageSquare,
+  Sparkles,
+  BookOpen,
+  History,
   Trash2,
-  Mic,
+  ChevronRight,
+  Briefcase,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Job, Chat, UserProfile } from '../App';
 import JobDetailModal from './JobDetailModal';
+import { formatDistanceToNow } from 'date-fns';
+import { ThemeToggle } from './ThemeToggle';
+// You might need to install this or keep custom logic if prefer not to add deps
+
+// Helper for date formatting if date-fns not available, or use the one below
+const formatTimeAgo = (date: Date) => {
+  const now = new Date();
+  const diff = now.getTime() - new Date(date).getTime();
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days}d ago`;
+  return new Date(date).toLocaleDateString();
+};
 
 interface HomePageProps {
   savedJobs: Job[];
@@ -37,19 +52,7 @@ export default function HomePage({
   const [showModal, setShowModal] = useState(false);
 
   const handleNewChat = () => {
-    // Navigate to /chat/new - ChatPage will create the actual chat via API
     navigate('/chat/new');
-  };
-
-  const formatDate = (date: Date) => {
-    const now = new Date();
-    const diff = now.getTime() - new Date(date).getTime();
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-    if (days === 0) return 'Today';
-    if (days === 1) return 'Yesterday';
-    if (days < 7) return `${days} days ago`;
-    return new Date(date).toLocaleDateString();
   };
 
   const handleJobClick = (job: Job) => {
@@ -58,7 +61,6 @@ export default function HomePage({
   };
 
   const handleSaveJob = () => {
-    // Job is already saved, this shouldn't be called from saved jobs list
     toast.info('Job is already saved');
   };
 
@@ -72,198 +74,205 @@ export default function HomePage({
   };
 
   return (
-    <div className='min-h-screen bg-gray-50'>
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
       {/* Header */}
-      <header className='bg-white border-b border-gray-200 sticky top-0 z-10'>
-        <div className='max-w-7xl mx-auto px-6 py-4 flex items-center justify-between'>
-          <div className='flex items-center gap-3'>
-            <div className='w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center'>
-              <Briefcase className='w-6 h-6 text-white' />
+      <header className="sticky top-0 z-50 bg-background border-b border-border">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-lg shadow-primary/20">
+              <Briefcase className="w-5 h-5 text-primary-foreground" />
             </div>
-            <h1 className='text-gray-900'>JobBot</h1>
+            <h1 className="text-lg font-bold tracking-tight">HireJet</h1>
           </div>
-          <button
-            onClick={() => navigate('/profile')}
-            className='flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors'>
-            {userProfile?.profilePhoto ? (
-              <img
-                src={userProfile.profilePhoto}
-                alt='Profile'
-                className='w-8 h-8 rounded-full object-cover'
-              />
-            ) : (
-              <div className='w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center'>
-                <User className='w-5 h-5 text-gray-600' />
-              </div>
-            )}
-            <span className='text-gray-700'>
-              {userProfile?.name || 'Profile'}
-            </span>
-          </button>
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <button
+              onClick={() => navigate('/profile')}
+              className="group flex items-center gap-3 px-2 py-1.5 rounded-full hover:bg-muted/50 transition-all">
+              <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground transition-colors hidden sm:block">
+                {userProfile?.name || 'Profile'}
+              </span>
+              {userProfile?.profilePhoto ? (
+                <img
+                  src={userProfile.profilePhoto}
+                  alt="Profile"
+                  className="w-8 h-8 rounded-full object-cover ring-2 ring-border group-hover:ring-primary/50 transition-all"
+                />
+              ) : (
+                <div className="w-8 h-8 bg-secondary rounded-full flex items-center justify-center ring-2 ring-border group-hover:ring-primary/50 transition-all">
+                  <User className="w-4 h-4 text-secondary-foreground" />
+                </div>
+              )}
+            </button>
+          </div>
         </div>
       </header>
 
-      <div className='max-w-7xl mx-auto px-6 py-8'>
-        {/* Welcome Section */}
-        <div className='mb-8'>
-          <h2 className='text-gray-900 mb-2'>
-            Welcome back, {userProfile?.name?.split(' ')[0]}!
+      <main className="flex-1 max-w-7xl mx-auto w-full px-6 py-8">
+        {/* Welcome Hero */}
+        <section className="mb-10 animate-fadeIn">
+          <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-muted-foreground mb-4">
+            Hello, {userProfile?.name?.split(' ')[0]}
           </h2>
-          <p className='text-gray-600'>
-            Find your dream job with AI-powered assistance
-          </p>
-        </div>
-
-        {/* New Chat Button */}
-        <button
-          onClick={handleNewChat}
-          className='w-full mb-4 p-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-3'>
-          <MessageSquarePlus className='w-6 h-6' />
-          <span>Start New Job Search Chat</span>
-        </button>
-
-        {/* Interview Prep Button */}
-        <button
-          onClick={() => navigate('/interview-prep')}
-          className='w-full mb-8 p-6 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:from-purple-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-3'>
-          <Mic className='w-6 h-6' />
-          <span>Practice Mock Interviews</span>
-        </button>
-
-        <div className='grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8'>
-          {/* Saved Jobs */}
-          <div className='bg-white rounded-xl shadow-sm border border-gray-200 p-6'>
-            <div className='flex items-center gap-3 mb-4'>
-              <div className='w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center'>
-                <BookmarkCheck className='w-6 h-6 text-blue-600' />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Quick Action: New Chat */}
+            <button
+              onClick={handleNewChat}
+              className="group relative overflow-hidden bg-primary p-6 rounded-2xl shadow-xl shadow-primary/10 transition-all hover:shadow-primary/20 hover:-translate-y-1 text-left">
+              <div className="relative z-10 flex flex-col items-start gap-4">
+                <div className="w-10 h-10 bg-primary-foreground/10 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <MessageSquarePlus className="w-6 h-6 text-primary-foreground" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-primary-foreground">Start New Search</h3>
+                  <p className="text-primary-foreground/80 text-sm mt-1">Chat to find your next opportunity</p>
+                </div>
               </div>
-              <div>
-                <h3 className='text-gray-900'>Saved Jobs</h3>
-                <p className='text-gray-500 text-sm'>
-                  {savedJobs.length} jobs saved
-                </p>
+            </button>
+
+            {/* Quick Action: Interview Prep */}
+            <button
+              onClick={() => navigate('/interview-prep')}
+              className="group relative overflow-hidden bg-card border border-border p-6 rounded-2xl transition-all hover:border-primary/50 hover:-translate-y-1 hover:shadow-lg text-left">
+              <div className="relative z-10 flex flex-col items-start gap-4">
+                <div className="w-10 h-10 bg-secondary rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Sparkles className="w-6 h-6 text-secondary-foreground" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-foreground">Interview Prep</h3>
+                  <p className="text-muted-foreground text-sm mt-1">Practice with AI mock interviews</p>
+                </div>
               </div>
-            </div>
-            <div className='space-y-3 max-h-80 overflow-y-auto pr-2'>
-              {savedJobs.length === 0 ? (
-                <p className='text-gray-400 text-center py-8'>
-                  No saved jobs yet
-                </p>
-              ) : (
-                savedJobs.slice(0, 5).map((job) => (
-                  <div
-                    key={job.id}
-                    className='p-4 border border-gray-200 rounded-lg hover:border-blue-500 transition-colors cursor-pointer'
-                    onClick={() => handleJobClick(job)}>
-                    <p className='text-gray-900 font-medium'>{job.title}</p>
-                    <p className='text-gray-600 text-sm'>{job.company}</p>
-                    <p className='text-gray-500 text-xs mt-1'>{job.location}</p>
+            </button>
+          </div>
+        </section>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* Main Column: Stats & Jobs (8 cols) */}
+          <div className="lg:col-span-8 space-y-8">
+            {/* Job Lists Tabs/Sections */}
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-semibold flex items-center gap-2">
+                  <BookOpen className="w-5 h-5 text-primary" />
+                  Your Activity
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {/* Saved Column */}
+                <div className="bg-card rounded-2xl border border-border p-5 flex flex-col h-[500px]">
+                  <div className="flex items-center justify-between mb-4 pb-4 border-b border-border/50">
+                    <span className="font-medium">Saved Jobs</span>
+                    <span className="bg-secondary/50 text-secondary-foreground px-2 py-0.5 rounded-full text-xs font-mono">
+                      {savedJobs.length}
+                    </span>
                   </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          {/* Applied Jobs */}
-          <div className='bg-white rounded-xl shadow-sm border border-gray-200 p-6'>
-            <div className='flex items-center gap-3 mb-4'>
-              <div className='w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center'>
-                <Briefcase className='w-6 h-6 text-green-600' />
-              </div>
-              <div>
-                <h3 className='text-gray-900'>Applied Jobs</h3>
-                <p className='text-gray-500 text-sm'>
-                  {appliedJobs.length} applications
-                </p>
-              </div>
-            </div>
-            <div className='space-y-3 max-h-80 overflow-y-auto pr-2'>
-              {appliedJobs.length === 0 ? (
-                <p className='text-gray-400 text-center py-8'>
-                  No applications yet
-                </p>
-              ) : (
-                appliedJobs.slice(0, 5).map((job) => (
-                  <div
-                    key={job.id}
-                    className='p-4 border border-gray-200 rounded-lg hover:border-green-500 transition-colors cursor-pointer'
-                    onClick={() => handleJobClick(job)}>
-                    <p className='text-gray-900 font-medium'>{job.title}</p>
-                    <p className='text-gray-600 text-sm'>{job.company}</p>
-                    <p className='text-gray-500 text-xs mt-1'>{job.location}</p>
-                    <div className='mt-2'>
-                      <span className='px-2 py-1 bg-green-100 text-green-700 text-xs rounded'>
-                        Applied
-                      </span>
-                    </div>
+                  <div className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-hide">
+                    {savedJobs.length === 0 ? (
+                      <div className="h-full flex flex-col items-center justify-center text-center opacity-50">
+                        <BookmarkCheck className="w-10 h-10 mb-3" />
+                        <p className="text-sm">No saved jobs yet</p>
+                      </div>
+                    ) : (
+                      savedJobs.slice().reverse().map((job) => (
+                        <div
+                          key={job.id}
+                          onClick={() => handleJobClick(job)}
+                          className="bg-background/50 hover:bg-muted p-4 rounded-xl border border-border/50 cursor-pointer transition-colors group">
+                          <h4 className="font-medium text-foreground group-hover:text-primary transition-colors line-clamp-1">{job.title}</h4>
+                          <p className="text-sm text-muted-foreground mt-1">{job.company}</p>
+                          <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+                            <MapPin className="w-3 h-3" /> {job.location}
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
+                </div>
 
-        {/* Previous Chats */}
-        <div className='bg-white rounded-xl shadow-sm border border-gray-200 p-6'>
-          <div className='flex items-center gap-3 mb-4'>
-            <div className='w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center'>
-              <MessageSquare className='w-6 h-6 text-purple-600' />
-            </div>
-            <div>
-              <h3 className='text-gray-900'>Previous Chats</h3>
-              <p className='text-gray-500 text-sm'>
-                {chats.length} conversations
-              </p>
+                {/* Applied Column */}
+                <div className="bg-card rounded-2xl border border-border p-5 flex flex-col h-[500px]">
+                  <div className="flex items-center justify-between mb-4 pb-4 border-b border-border/50">
+                    <span className="font-medium">Applied</span>
+                    <span className="bg-green-500/10 text-green-500 px-2 py-0.5 rounded-full text-xs font-mono">
+                      {appliedJobs.length}
+                    </span>
+                  </div>
+                  <div className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-hide">
+                    {appliedJobs.length === 0 ? (
+                      <div className="h-full flex flex-col items-center justify-center text-center opacity-50">
+                        <Briefcase className="w-10 h-10 mb-3" />
+                        <p className="text-sm">No applications yet</p>
+                      </div>
+                    ) : (
+                      appliedJobs.slice().reverse().map((job) => (
+                        <div
+                          key={job.id}
+                          onClick={() => handleJobClick(job)}
+                          className="bg-background/50 hover:bg-muted p-4 rounded-xl border border-border/50 cursor-pointer transition-colors group">
+                          <h4 className="font-medium text-foreground group-hover:text-primary transition-colors line-clamp-1">{job.title}</h4>
+                          <p className="text-sm text-muted-foreground mt-1">{job.company}</p>
+                          <div className="mt-3 flex items-center gap-2 text-xs text-green-500">
+                            <CheckCircle className="w-3 h-3" /> Applied
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-          <div className='space-y-3'>
-            {chats.length === 0 ? (
-              <div className='text-center py-8'>
-                <p className='text-gray-400 mb-4'>No previous chats</p>
-                <button
-                  onClick={handleNewChat}
-                  className='px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors'>
-                  Start Your First Chat
-                </button>
-              </div>
-            ) : (
-              chats.map((chat) => (
-                <div
-                  key={chat.id}
-                  className='p-4 border border-gray-200 rounded-lg hover:border-purple-500 transition-colors cursor-pointer group'>
-                  <div className='flex items-start justify-between'>
+
+          {/* Sidebar: History (4 cols) */}
+          <aside className="lg:col-span-4 space-y-6">
+            <h3 className="text-xl font-semibold flex items-center gap-2">
+              <History className="w-5 h-5 text-primary" />
+              Recent Chats
+            </h3>
+            <div className="bg-card rounded-2xl border border-border p-2">
+              <div className="space-y-1 max-h-[600px] overflow-y-auto">
+                {chats.length === 0 ? (
+                  <div className="p-8 text-center text-muted-foreground text-sm">
+                    No chat history yet.
+                  </div>
+                ) : (
+                  chats.map((chat) => (
                     <div
-                      className='flex-1'
-                      onClick={() => navigate(`/chat/${chat.id}`)}>
-                      <p className='text-gray-900'>{chat.title}</p>
-                      <p className='text-gray-500 text-sm mt-1'>
-                        {chat.messages.length} messages
-                      </p>
-                    </div>
-                    <div className='flex items-center gap-2'>
-                      <span className='text-gray-400 text-sm'>
-                        {formatDate(chat.timestamp)}
-                      </span>
+                      key={chat.id}
+                      onClick={() => navigate(`/chat/${chat.id}`)}
+                      className="group flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 cursor-pointer transition-colors">
+                      <div className="w-10 h-10 rounded-lg bg-secondary/30 flex items-center justify-center shrink-0">
+                        <MessageSquare className="w-5 h-5 text-secondary-foreground" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-foreground truncate group-hover:text-primary transition-colors">
+                          {chat.title}
+                        </h4>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {formatTimeAgo(chat.timestamp)}
+                        </p>
+                      </div>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           deleteChat(chat.id);
                           toast.success('Chat deleted');
                         }}
-                        className='p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all'
-                        title='Delete chat'>
-                        <Trash2 className='w-4 h-4' />
+                        className="p-2 opacity-0 group-hover:opacity-100 hover:text-destructive transition-all">
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </aside>
         </div>
-      </div>
+      </main>
 
-      {/* Job Detail Modal */}
+      {/* Helper Icons for the layout (re-importing needed icons to be safe) */}
       {selectedJob && (
         <JobDetailModal
           job={selectedJob}
@@ -282,3 +291,12 @@ export default function HomePage({
     </div>
   );
 }
+
+// Importing icons that weren't in the top import but used in the code
+import {
+  BookmarkCheck,
+  CheckCircle,
+  MapPin,
+  MessageSquare,
+} from 'lucide-react';
+
