@@ -346,15 +346,13 @@ export default function ChatPage({
             {currentChat?.messages.map((msg) => (
               <div
                 key={msg.id}
-                className={`flex ${
-                  msg.sender === 'user' ? 'justify-end' : 'justify-start'
-                }`}>
+                className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'
+                  }`}>
                 <div
-                  className={`max-w-[85%] px-4 py-3 rounded-2xl ${
-                    msg.sender === 'user'
+                  className={`max-w-[85%] px-4 py-3 rounded-2xl ${msg.sender === 'user'
                       ? 'bg-blue-600 text-white'
                       : 'bg-gray-100 text-gray-900'
-                  }`}>
+                    }`}>
                   {msg.sender === 'bot' && (
                     <div className='flex items-center gap-2 mb-1'>
                       <Sparkles className='w-4 h-4 text-blue-600' />
@@ -384,19 +382,9 @@ export default function ChatPage({
                       JobBot AI
                     </span>
                   </div>
-                  <div className='flex gap-1'>
-                    <div
-                      className='w-2 h-2 bg-gray-400 rounded-full animate-bounce'
-                      style={{ animationDelay: '0ms' }}
-                    />
-                    <div
-                      className='w-2 h-2 bg-gray-400 rounded-full animate-bounce'
-                      style={{ animationDelay: '150ms' }}
-                    />
-                    <div
-                      className='w-2 h-2 bg-gray-400 rounded-full animate-bounce'
-                      style={{ animationDelay: '300ms' }}
-                    />
+                  <div className='flex items-center gap-2'>
+                    <p className='text-sm text-gray-500'>Thinking...</p>
+                    <Loader2 className='w-4 h-4 animate-spin text-blue-600' />
                   </div>
                 </div>
               </div>
@@ -526,11 +514,10 @@ export default function ChatPage({
                           <button
                             key={page}
                             onClick={() => setCurrentPage(page)}
-                            className={`w-10 h-10 rounded-lg transition-colors ${
-                              currentPage === page
+                            className={`w-10 h-10 rounded-lg transition-colors ${currentPage === page
                                 ? 'bg-blue-600 text-white'
                                 : 'bg-white border border-gray-300 hover:bg-gray-50'
-                            }`}>
+                              }`}>
                             {page}
                           </button>
                         ))}
