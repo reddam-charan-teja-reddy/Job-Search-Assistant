@@ -551,6 +551,30 @@ async def analyze_interview_response(call_id: str) -> Dict[str, Any]:
         Analysis results
     """
     try:
+        # Get the response record to find the interview_id
+        response_record = await get_response_by_call_id(call_id)
+        if not response_record:
+            logger.error(f"No response record found for call_id: {call_id}")
+            return {"error": "Response record not found"}
+        
+        interview_id = response_record.get("interview_id")
+        
+        # Get the interview details (objective, questions)
+        interview = None
+        interview_objective = ""
+        interview_questions = []
+        job_title = ""
+        company_name = ""
+        
+        if interview_id:
+            interview = await get_interview_by_id(interview_id)
+            if interview:
+                interview_objective = interview.get("objective", "")
+                interview_questions = interview.get("questions", [])
+                job_title = interview.get("job_title", "")
+                company_name = interview.get("company_name", "")
+                logger.info(f"Found interview context - Job: {job_title}, Questions: {len(interview_questions)}")
+        
         # Get call details from Retell
         call_details = await get_retell_call(call_id)
         
@@ -559,30 +583,69 @@ async def analyze_interview_response(call_id: str) -> Dict[str, Any]:
         if not transcript:
             return {"error": "No transcript available"}
         
+        # Build context for analysis
+        context_parts = []
+        
+        if job_title:
+            context_parts.append(f"**Position:** {job_title}")
+        if company_name:
+            context_parts.append(f"**Company:** {company_name}")
+        if interview_objective:
+            context_parts.append(f"**Interview Objective:**\n{interview_objective}")
+        if interview_questions:
+            questions_text = "\n".join([f"{i+1}. {q}" for i, q in enumerate(interview_questions)])
+            context_parts.append(f"**Questions Asked:**\n{questions_text}")
+        
+        interview_context = "\n\n".join(context_parts) if context_parts else "No additional context available."
+        
         # Use Gemini to analyze the interview
         model = genai.GenerativeModel('gemini-2.5-flash')
         
-        analysis_prompt = f"""Analyze this interview transcript and provide:
-1. Overall performance score (1-10)
-2. Communication skills score (1-10)
-3. Technical knowledge score (1-10)
-4. Key strengths (list 3)
-5. Areas for improvement (list 3)
-6. Notable quotes from the candidate
+        analysis_prompt = f"""You are a strict and realistic interview evaluator. Analyze this interview transcript critically and objectively.
 
-Transcript:
+**INTERVIEW CONTEXT:**
+{interview_context}
+
+**TRANSCRIPT:**
 {transcript}
 
-Output as JSON:
+**EVALUATION CRITERIA:**
+- Be factual and evidence-based. Only cite strengths that are clearly demonstrated in the transcript.
+- Be critical and realistic. Do not give generic or soft feedback.
+- Score honestly based on actual performance, not potential.
+- If the candidate gave vague, incomplete, or incorrect answers, reflect that in the score and feedback.
+- Compare answers against the questions asked to assess relevance and completeness.
+- Identify specific moments where the candidate excelled or struggled.
+
+**SCORING GUIDELINES:**
+- 1-3: Poor - Major gaps, unclear communication, incorrect information
+- 4-5: Below Average - Some relevant points but lacks depth or clarity
+- 6-7: Average - Adequate responses but room for improvement
+- 8-9: Good - Strong, clear answers with good examples
+- 10: Excellent - Outstanding responses, exceptional communication
+
+Provide your analysis in the following JSON format:
 {{
-    "overall_score": 8,
-    "communication_score": 7,
-    "technical_score": 8,
-    "strengths": ["strength1", "strength2", "strength3"],
-    "improvements": ["area1", "area2", "area3"],
-    "notable_quotes": ["quote1", "quote2"]
+    "overall_score": <1-10>,
+    "communication_score": <1-10>,
+    "technical_score": <1-10>,
+    "strengths": [
+        "<specific strength with evidence from transcript>",
+        "<specific strength with evidence from transcript>",
+        "<specific strength with evidence from transcript>"
+    ],
+    "improvements": [
+        "<specific area needing improvement with example from transcript>",
+        "<specific area needing improvement with example from transcript>",
+        "<specific area needing improvement with example from transcript>"
+    ],
+    "notable_quotes": [
+        "<direct quote showing good or poor response>",
+        "<direct quote showing good or poor response>"
+    ]
 }}
-"""
+
+Be honest and constructive. The candidate needs real feedback to improve, not flattery."""
         
         response = model.generate_content(analysis_prompt)
         response_text = response.text
