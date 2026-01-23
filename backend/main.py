@@ -430,12 +430,14 @@ async def send_message_endpoint(request: ChatMessageRequest):
     """
     logger.info(f"Send message request for email: {request.email}, chat_id: {request.chat_id}")
     print(f"[MAIN] sendMessage called with email={request.email}, chat_id={request.chat_id}, message={request.message[:50] if request.message else 'None'}...")
+    print(f"[MAIN] selected_job_id={request.selected_job_id}, has_job_data={request.selected_job_data is not None}")
     try:
         result = await process_chat_message(
             email=request.email,
             chat_id=request.chat_id,
             user_message=request.message,
-            selected_job_id=request.selected_job_id
+            selected_job_id=request.selected_job_id,
+            selected_job_data=request.selected_job_data
         )
         print(f"[MAIN] process_chat_message returned: {list(result.keys()) if result else 'None'}")
         

@@ -127,6 +127,7 @@ class ChatMessageRequest(BaseModel):
     chat_id: str
     message: str
     selected_job_id: Optional[str] = None  # Optional job ID when user selects a job
+    selected_job_data: Optional[dict] = None  # Full job data when user selects a job (to avoid re-fetching)
 
 
 class ChatMessageResponse(BaseModel):

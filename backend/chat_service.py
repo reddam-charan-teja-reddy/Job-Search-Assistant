@@ -362,7 +362,8 @@ async def process_chat_message(
     email: str,
     chat_id: str,
     user_message: str,
-    selected_job_id: Optional[str] = None
+    selected_job_id: Optional[str] = None,
+    selected_job_data: Optional[dict] = None
 ) -> dict:
     """
     Process a chat message and generate a response using Gemini with function calling.
@@ -372,6 +373,7 @@ async def process_chat_message(
         chat_id: Chat session ID
         user_message: User's message
         selected_job_id: Optional job ID if user selected a job
+        selected_job_data: Optional full job data if user selected a job (avoids re-fetching)
     
     Returns:
         dict with response message, optional job cards, and optional selected job details
@@ -404,13 +406,45 @@ async def process_chat_message(
     # Build the prompt with context
     context_prompt = build_context_prompt(chat_context, user_message, selected_job_id)
     
-    # Get selected job details if job_id is provided
+    # Use provided job data or fetch if only ID is provided
     selected_job_details = None
-    if selected_job_id:
+    if selected_job_data:
+        # Use the job data passed directly from frontend (preferred - avoids API call)
+        selected_job_details = selected_job_data
+        job_title = selected_job_data.get('job_title', 'Unknown Position')
+        employer_name = selected_job_data.get('employer_name', 'Unknown Company')
+        job_description = selected_job_data.get('job_description', '')
+        job_location = selected_job_data.get('job_location', 'Not specified')
+        job_employment_type = selected_job_data.get('job_employment_type', '')
+        job_highlights = selected_job_data.get('job_highlights', {})
+        
+        # Build detailed job context for the AI
+        job_context = f"""
+[SELECTED JOB - User wants to discuss this specific position]
+Job Title: {job_title}
+Company: {employer_name}
+Location: {job_location}
+Employment Type: {job_employment_type}
+
+Job Description:
+{job_description[:2000] if job_description else 'No description available'}
+"""
+        if job_highlights:
+            if job_highlights.get('Qualifications'):
+                job_context += f"\nQualifications:\n" + "\n".join(f"- {q}" for q in job_highlights['Qualifications'][:5])
+            if job_highlights.get('Responsibilities'):
+                job_context += f"\nResponsibilities:\n" + "\n".join(f"- {r}" for r in job_highlights['Responsibilities'][:5])
+        
+        context_prompt += f"\n\n{job_context}"
+        print(f"[CHAT_SERVICE] Using provided job data for: {job_title} at {employer_name}")
+    elif selected_job_id:
+        # Fallback: try to fetch job details if only ID is provided
         job_result = await get_job_details(selected_job_id)
         if job_result.get("data"):
             selected_job_details = extract_job_card_data(job_result["data"][0])
             context_prompt += f"\n\n[Selected Job Details: {selected_job_details.get('job_title')} at {selected_job_details.get('employer_name')}]"
+        else:
+            print(f"[CHAT_SERVICE] Warning: Could not fetch job details for ID: {selected_job_id}")
     
     # Create chat model with function calling
     model = get_chat_model()
