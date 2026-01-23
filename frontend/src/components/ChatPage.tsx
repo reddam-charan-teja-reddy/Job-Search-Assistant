@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Send, Home, Sparkles, Loader2, X, ArrowLeft, Bot, User, Briefcase, X } from 'lucide-react';
+import { Send, Home, Sparkles, Loader2, X, ArrowLeft, Bot, User, Briefcase } from 'lucide-react';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import { Job, Chat, Message } from '../App';
@@ -214,6 +214,16 @@ export default function ChatPage({
       setActiveJobInContext(null);
     }
 
+    // If we have an active job in context and we're not clearing it, 
+    // AND we're not selecting a new one, include it in the request to ensure backend context
+    let jobDataToSend = finalJobData;
+    let jobIdToSend = finalJobId;
+
+    if (!jobDataToSend && !shouldClearJob && activeJobInContext) {
+      jobDataToSend = activeJobInContext;
+      jobIdToSend = activeJobInContext.job_id;
+    }
+
     setIsSending(true);
     setMessage('');
 
@@ -232,8 +242,8 @@ export default function ChatPage({
         userEmail,
         actualChatId,
         messageText,
-        finalJobId,
-        finalJobData
+        jobIdToSend,
+        jobDataToSend
       );
 
       const newBotMessage: Message = {
@@ -464,43 +474,46 @@ export default function ChatPage({
             </div>
           </div>
 
-          {/* Jobs Sidebar */}
-          {showJobs && displayedJobs.length > 0 && (
-            <div className="flex-1 bg-background flex flex-col min-w-0 animate-fadeIn">
-              <div className="p-4 border-b border-border/40 flex items-center justify-between">
-                <h3 className="font-semibold flex items-center gap-2">
-                  <Briefcase className="w-4 h-4 text-primary" />
-                  Recommended Jobs <span className="text-muted-foreground text-xs font-normal">({displayedJobs.length})</span>
-                </h3>
-                <button
-                  onClick={() => setShowJobs(false)}
-                  className="text-xs text-muted-foreground hover:text-foreground underline">
-                  Hide
-                </button>
-              </div>
 
-              <div ref={jobsContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4">
-                {displayedJobs.map((job) => (
-                  <JobCard
-                    key={job.id}
-                    job={job}
-                    onSave={saveJob}
-                    onUnsave={unsaveJob}
-                    onApply={applyToJob}
-                    onChoose={handleChooseJob}
-                    isSaved={savedJobs.some((j) => j.id === job.id)}
-                    isApplied={appliedJobs.some((j) => j.id === job.id)}
-                  />
-                ))}
+        </div>
 
-                <div className="p-8 text-center text-muted-foreground text-sm">
-                  <p>End of recommendations</p>
-                  <p className="text-xs mt-1">Refine your search for more results</p>
-                </div>
+        {/* Jobs Sidebar */}
+        {showJobs && displayedJobs.length > 0 && (
+          <div className="flex-1 bg-background flex flex-col min-w-0 animate-fadeIn">
+            <div className="p-4 border-b border-border/40 flex items-center justify-between">
+              <h3 className="font-semibold flex items-center gap-2">
+                <Briefcase className="w-4 h-4 text-primary" />
+                Recommended Jobs <span className="text-muted-foreground text-xs font-normal">({displayedJobs.length})</span>
+              </h3>
+              <button
+                onClick={() => setShowJobs(false)}
+                className="text-xs text-muted-foreground hover:text-foreground underline">
+                Hide
+              </button>
+            </div>
+
+            <div ref={jobsContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4">
+              {displayedJobs.map((job) => (
+                <JobCard
+                  key={job.id}
+                  job={job}
+                  onSave={saveJob}
+                  onUnsave={unsaveJob}
+                  onApply={applyToJob}
+                  onChoose={handleChooseJob}
+                  isSaved={savedJobs.some((j) => j.id === job.id)}
+                  isApplied={appliedJobs.some((j) => j.id === job.id)}
+                />
+              ))}
+
+              <div className="p-8 text-center text-muted-foreground text-sm">
+                <p>End of recommendations</p>
+                <p className="text-xs mt-1">Refine your search for more results</p>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
-      );
+    </div>
+  );
 }
