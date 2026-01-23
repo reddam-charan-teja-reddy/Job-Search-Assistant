@@ -53,7 +53,7 @@ export default function InterviewPrepPage({
   // Custom interview form state
   const [customName, setCustomName] = useState('');
   const [customObjective, setCustomObjective] = useState('');
-  const [selectedInterviewer, setSelectedInterviewer] = useState<number | null>(null);
+  const [selectedInterviewer, setSelectedInterviewer] = useState<number | undefined>(undefined);
   const [questionCount, setQuestionCount] = useState(5);
   const [duration, setDuration] = useState('10');
   const [isGeneratingObjective, setIsGeneratingObjective] = useState(false);
@@ -134,8 +134,15 @@ export default function InterviewPrepPage({
 
   // Handle starting interview from modal (works for both job-based and custom)
   const handleStartInterviewFromModal = async () => {
-    if (!userProfile?.email || !customName || !customObjective) {
-      toast.error('Please fill in all required fields');
+    // For job-based interviews, we don't need customObjective as it's generated on backend
+    if (!userProfile?.email || !customName) {
+      toast.error('Please fill in the interview name');
+      return;
+    }
+    
+    // For custom interviews, objective is required
+    if (!selectedJob && !customObjective) {
+      toast.error('Please fill in the objective');
       return;
     }
     
