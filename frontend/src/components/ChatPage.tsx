@@ -71,6 +71,7 @@ export default function ChatPage({
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [selectedJobData, setSelectedJobData] = useState<JobCardData | null>(null);
   const [actualChatId, setActualChatId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const jobsContainerRef = useRef<HTMLDivElement>(null);
@@ -209,10 +210,14 @@ export default function ChatPage({
     }
   }, [showJobs, displayedJobs]);
 
-  const handleSendMessage = async (text?: string) => {
+  const handleSendMessage = async (text?: string, jobId?: string, jobData?: JobCardData) => {
     const messageText = text || message;
     if (!messageText.trim() || !currentChat || !actualChatId || isSending)
       return;
+
+    // Use passed parameters or fall back to state
+    const finalJobId = jobId || selectedJobId || undefined;
+    const finalJobData = jobData || selectedJobData || undefined;
 
     setIsSending(true);
     setMessage('');
@@ -234,7 +239,8 @@ export default function ChatPage({
         userEmail,
         actualChatId,
         messageText,
-        selectedJobId || undefined
+        finalJobId,
+        finalJobData
       );
 
       // Add bot response
@@ -281,6 +287,7 @@ export default function ChatPage({
 
       // Clear selected job after sending
       setSelectedJobId(null);
+      setSelectedJobData(null);
     } catch (error) {
       console.error('Error sending message:', error);
       toast.error('Failed to send message. Please try again.');
@@ -295,12 +302,26 @@ export default function ChatPage({
   const handleChooseJob = (job: Job) => {
     if (!currentChat) return;
 
-    // Set the selected job ID for the next message
-    setSelectedJobId(job.id);
+    // Convert Job back to JobCardData format for the API
+    const jobData: JobCardData = {
+      job_id: job.id,
+      job_title: job.title,
+      employer_name: job.company,
+      job_description: job.description || '',
+      job_location: job.location,
+      job_salary: job.salary,
+      job_employment_type: job.role,
+      job_apply_link: job.applyLink,
+      job_posted_at: job.postedAt,
+      job_is_remote: job.isRemote,
+      employer_logo: job.employerLogo,
+      job_highlights: job.highlights,
+    };
 
-    // Automatically send a message about this job
+    // Automatically send a message about this job with the job data passed directly
+    // (not via state, since React state updates are async)
     const chooseMessage = `I'm interested in the ${job.title} position at ${job.company}. Can you tell me more about it and help me prepare for this role?`;
-    handleSendMessage(chooseMessage);
+    handleSendMessage(chooseMessage, job.id, jobData);
 
     toast.success('Job selected for discussion');
   };
@@ -346,15 +367,13 @@ export default function ChatPage({
             {currentChat?.messages.map((msg) => (
               <div
                 key={msg.id}
-                className={`flex ${
-                  msg.sender === 'user' ? 'justify-end' : 'justify-start'
-                }`}>
+                className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'
+                  }`}>
                 <div
-                  className={`max-w-[85%] px-4 py-3 rounded-2xl ${
-                    msg.sender === 'user'
+                  className={`max-w-[85%] px-4 py-3 rounded-2xl ${msg.sender === 'user'
                       ? 'bg-blue-600 text-white'
                       : 'bg-gray-100 text-gray-900'
-                  }`}>
+                    }`}>
                   {msg.sender === 'bot' && (
                     <div className='flex items-center gap-2 mb-1'>
                       <Sparkles className='w-4 h-4 text-blue-600' />
@@ -384,19 +403,9 @@ export default function ChatPage({
                       JobBot AI
                     </span>
                   </div>
-                  <div className='flex gap-1'>
-                    <div
-                      className='w-2 h-2 bg-gray-400 rounded-full animate-bounce'
-                      style={{ animationDelay: '0ms' }}
-                    />
-                    <div
-                      className='w-2 h-2 bg-gray-400 rounded-full animate-bounce'
-                      style={{ animationDelay: '150ms' }}
-                    />
-                    <div
-                      className='w-2 h-2 bg-gray-400 rounded-full animate-bounce'
-                      style={{ animationDelay: '300ms' }}
-                    />
+                  <div className='flex items-center gap-2'>
+                    <p className='text-sm text-gray-500'>Thinking...</p>
+                    <Loader2 className='w-4 h-4 animate-spin text-blue-600' />
                   </div>
                 </div>
               </div>
@@ -526,11 +535,10 @@ export default function ChatPage({
                           <button
                             key={page}
                             onClick={() => setCurrentPage(page)}
-                            className={`w-10 h-10 rounded-lg transition-colors ${
-                              currentPage === page
+                            className={`w-10 h-10 rounded-lg transition-colors ${currentPage === page
                                 ? 'bg-blue-600 text-white'
                                 : 'bg-white border border-gray-300 hover:bg-gray-50'
-                            }`}>
+                              }`}>
                             {page}
                           </button>
                         ))}

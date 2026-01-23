@@ -106,7 +106,8 @@ export const sendMessage = async (
   email: string,
   chatId: string,
   message: string,
-  selectedJobId?: string
+  selectedJobId?: string,
+  selectedJobData?: JobCardData
 ): Promise<ChatMessageResponse> => {
   const response = await fetch('/api/sendMessage', {
     method: 'POST',
@@ -118,6 +119,7 @@ export const sendMessage = async (
       chat_id: chatId,
       message,
       selected_job_id: selectedJobId,
+      selected_job_data: selectedJobData,
     }),
   });
 
