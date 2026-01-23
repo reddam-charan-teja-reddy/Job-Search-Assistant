@@ -50,31 +50,60 @@ function ApplyConfirmationModal({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 10000,
+        zIndex: 99999,
+        padding: '20px',
       }}>
-      <div className='bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl'>
-        <h3 className='text-lg font-semibold text-gray-900 mb-2'>
+      <div 
+        style={{ 
+          backgroundColor: 'white',
+          borderRadius: '12px',
+          padding: '24px',
+          width: '100%',
+          maxWidth: '350px',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+        }}
+        onClick={(e) => e.stopPropagation()}>
+        <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#111827', marginBottom: '8px', textAlign: 'center' }}>
           Confirm Application
         </h3>
-        <p className='text-gray-600 mb-4'>
+        <p style={{ color: '#4B5563', marginBottom: '20px', textAlign: 'center', fontSize: '14px' }}>
           Did you complete your application for{' '}
-          <span className='font-medium'>{job.title}</span> at{' '}
-          <span className='font-medium'>{job.company}</span>?
+          <span style={{ fontWeight: 500 }}>{job.title}</span> at{' '}
+          <span style={{ fontWeight: 500 }}>{job.company}</span>?
         </p>
-        <div className='flex gap-3'>
-          <button
-            onClick={onCancel}
-            className='flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors'>
-            No, I didn't apply
-          </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <button
             onClick={onConfirm}
-            className='flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors'>
+            style={{
+              width: '100%',
+              padding: '14px 16px',
+              backgroundColor: '#16a34a',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '14px',
+              fontWeight: 500,
+              cursor: 'pointer',
+            }}>
             Yes, I applied!
+          </button>
+          <button
+            onClick={onCancel}
+            style={{
+              width: '100%',
+              padding: '12px 16px',
+              backgroundColor: 'white',
+              color: '#374151',
+              border: '1px solid #D1D5DB',
+              borderRadius: '8px',
+              fontSize: '14px',
+              cursor: 'pointer',
+            }}>
+            No, I didn't apply
           </button>
         </div>
       </div>
@@ -142,10 +171,13 @@ export default function JobDetailModal({
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 9999,
+          padding: '24px',
+          overflow: 'auto',
         }}
         onClick={onClose}>
         <div
-          className='bg-white rounded-xl w-[90vw] h-[90vh] max-w-5xl overflow-hidden shadow-2xl flex flex-col'
+          className='bg-white rounded-xl w-full max-w-3xl shadow-2xl flex flex-col'
+          style={{ maxHeight: 'calc(100vh - 48px)' }}
           onClick={(e) => e.stopPropagation()}>
           {/* Header */}
           <div className='flex items-start justify-between p-6 border-b border-gray-200'>
@@ -187,7 +219,7 @@ export default function JobDetailModal({
           </div>
 
           {/* Content */}
-          <div className='flex-1 overflow-y-auto p-6'>
+          <div className='flex-1 overflow-y-auto p-6' style={{ minHeight: '200px' }}>
             {/* Job Meta */}
             <div className='grid grid-cols-2 md:grid-cols-4 gap-4 mb-6'>
               <div className='flex items-center gap-2 text-gray-600'>
