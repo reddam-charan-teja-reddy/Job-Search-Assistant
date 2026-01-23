@@ -365,24 +365,52 @@ async def register_retell_call(
     if not RETELL_API_KEY:
         raise ValueError("RETELL_API_KEY is not configured")
     
+    print(f"\n[RETELL_CALL] ========== REGISTERING RETELL CALL ==========")
+    print(f"[RETELL_CALL] Interviewer: {interviewer.get('name')} (ID: {interviewer_id})")
+    print(f"[RETELL_CALL] Agent ID: {interviewer.get('agent_id')}")
+    print(f"[RETELL_CALL] Dynamic Variables Being Sent:")
+    for key, value in dynamic_data.items():
+        # Truncate long values for logging
+        if isinstance(value, str) and len(value) > 200:
+            print(f"[RETELL_CALL]   - {key}: {value[:200]}...")
+        else:
+            print(f"[RETELL_CALL]   - {key}: {value}")
+    print(f"[RETELL_CALL] ================================================")
+    
     async with httpx.AsyncClient() as client:
+        # Build payload with all possible ways to pass context to Retell
+        payload = {
+            "agent_id": interviewer["agent_id"],
+            "retell_llm_dynamic_variables": dynamic_data,
+            # Also pass as metadata for agents that read from metadata
+            "metadata": {
+                "interview_context": dynamic_data.get("system_prompt", ""),
+                "questions": dynamic_data.get("interview_questions", ""),
+                "candidate": dynamic_data.get("candidate_name", ""),
+                "objective": dynamic_data.get("interview_objective", "")
+            }
+        }
+        
+        print(f"[RETELL_CALL] Sending request to Retell API...")
+        print(f"[RETELL_CALL] Payload keys: {list(payload.keys())}")
         response = await client.post(
             f"{RETELL_API_URL}/v2/create-web-call",
             headers={
                 "Authorization": f"Bearer {RETELL_API_KEY}",
                 "Content-Type": "application/json"
             },
-            json={
-                "agent_id": interviewer["agent_id"],
-                "retell_llm_dynamic_variables": dynamic_data
-            }
+            json=payload
         )
         
         if response.status_code != 200 and response.status_code != 201:
+            print(f"[RETELL_CALL] ❌ ERROR: {response.status_code} - {response.text}")
             logger.error(f"Retell API error: {response.text}")
             raise Exception(f"Failed to register call: {response.text}")
         
         result = response.json()
+        print(f"[RETELL_CALL] ✅ Call registered successfully!")
+        print(f"[RETELL_CALL] Call ID: {result.get('call_id')}")
+        print(f"[RETELL_CALL] ================================================\n")
         logger.info(f"Retell call registered: {result.get('call_id')}")
         return result
 

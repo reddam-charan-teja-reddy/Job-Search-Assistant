@@ -63,6 +63,14 @@ export interface Message {
   timestamp: Date;
 }
 
+// Data from sign-in response
+export interface SignInData {
+  profile: UserProfile;
+  savedJobs?: Job[];
+  appliedJobs?: Job[];
+  chats?: Chat[];
+}
+
 function App() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [savedJobs, setSavedJobs] = useState<Job[]>([]);
@@ -95,11 +103,27 @@ function App() {
     if (storedOnboarded) setIsOnboarded(JSON.parse(storedOnboarded));
   }, []);
 
-  const completeOnboarding = (profile: UserProfile) => {
+  const completeOnboarding = (profile: UserProfile, signInData?: SignInData) => {
     setUserProfile(profile);
     setIsOnboarded(true);
     localStorage.setItem('userProfile', JSON.stringify(profile));
     localStorage.setItem('isOnboarded', JSON.stringify(true));
+    
+    // If we have sign-in data (returning user), populate all the data
+    if (signInData) {
+      if (signInData.savedJobs && signInData.savedJobs.length > 0) {
+        setSavedJobs(signInData.savedJobs);
+        localStorage.setItem('savedJobs', JSON.stringify(signInData.savedJobs));
+      }
+      if (signInData.appliedJobs && signInData.appliedJobs.length > 0) {
+        setAppliedJobs(signInData.appliedJobs);
+        localStorage.setItem('appliedJobs', JSON.stringify(signInData.appliedJobs));
+      }
+      if (signInData.chats && signInData.chats.length > 0) {
+        setChats(signInData.chats);
+        localStorage.setItem('chats', JSON.stringify(signInData.chats));
+      }
+    }
   };
 
   const updateProfile = (profile: UserProfile) => {

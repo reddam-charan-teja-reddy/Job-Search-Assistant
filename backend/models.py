@@ -29,6 +29,20 @@ class UserOnboardingResponse(BaseModel):
     about: Optional[str] = None
 
 
+class SignInRequest(BaseModel):
+    """Request model for email-based sign in."""
+    email: str
+
+
+class SignInResponse(BaseModel):
+    """Response model for sign in - returns user profile and data if found."""
+    exists: bool
+    user: Optional[UserOnboardingResponse] = None
+    saved_jobs: Optional[List[dict]] = None
+    applied_jobs: Optional[List[dict]] = None
+    chat_history: Optional[List[dict]] = None
+
+
 class ChatMessage(BaseModel):
     """Model to represent a chat message in the chat history and chat interface."""
     sender: str  # 'user' or 'bot'

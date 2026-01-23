@@ -128,7 +128,7 @@ async def search_jobs(
 
 async def get_job_details(
     job_id: str,
-    country: str = "us"
+    country: str = "in"
 ) -> dict:
     """
     Get detailed information for a specific job.

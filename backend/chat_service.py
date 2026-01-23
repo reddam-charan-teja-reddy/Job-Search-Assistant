@@ -248,8 +248,9 @@ Focus on:
 2. Any preferences mentioned (location, salary, remote, etc.)
 3. Key advice or information provided
 4. Any jobs that were discussed or selected
+5. key events that happened in the conversation
 
-Keep the summary concise (max 150 words).
+Keep the summary concise (max 300 words).
 
 Conversation:
 {conversation_text}
@@ -738,7 +739,7 @@ async def create_new_chat(email: str) -> dict:
     
     initial_message = f"""## Hello {user_name}! 👋
 
-I'm **JobBot AI**, your personal career assistant powered by advanced AI.
+I'm **HireJet an Agentic AI**, your personal career assistant powered by advanced AI.
 
 I've analyzed your profile and I'm ready to help you with:
 

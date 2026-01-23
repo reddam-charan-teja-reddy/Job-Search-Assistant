@@ -14,6 +14,7 @@ from models import (
     ChatMessageRequest, ChatMessageResponse,
     CreateChatRequest, CreateChatResponse,
     GetChatMessagesRequest, GetChatMessagesResponse,
+    SignInRequest, SignInResponse,
     # Interview models
     CreateInterviewRequest, CreateJobInterviewRequest, InterviewResponse,
     GetInterviewsResponse, RegisterCallRequest, RegisterCallResponse,
@@ -141,20 +142,90 @@ async def onboard_user(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/signIn", response_model=SignInResponse)
+async def sign_in(request: SignInRequest):
+    """ Sign in endpoint - checks if user exists by email.
+        If user exists, returns their profile data along with saved jobs, applied jobs, and chat history.
+        If user doesn't exist, returns exists=False.
+    """
+    logger.info(f"[SIGN_IN] Sign in request for email: {request.email}")
+    try:
+        user = await db.users.find_one({"email": request.email})
+        logger.info(f"[SIGN_IN] DB query completed. User found: {user is not None}")
+        
+        if user:
+            # User exists, return their profile
+            logger.info(f"[SIGN_IN] User found: {user.get('name', 'Unknown')}")
+            
+            user_profile = UserOnboardingResponse(
+                name=user.get("name", ""),
+                email=user.get("email", ""),
+                phone=user.get("phone", ""),
+                location=user.get("location", ""),
+                skills=user.get("skills", []),
+                experience=user.get("experience", []),
+                profile_summary=user.get("profile_summary", ""),
+                education=user.get("education"),
+                certificationsAndAchievementsAndAwards=user.get("certificationsAndAchievementsAndAwards"),
+                projects=user.get("projects"),
+                about=user.get("about")
+            )
+            
+            # Get saved jobs
+            saved_jobs = user.get("saved_jobs", [])
+            logger.info(f"[SIGN_IN] Saved jobs count: {len(saved_jobs)}")
+            
+            # Get applied jobs
+            applied_jobs = user.get("applied_jobs", [])
+            logger.info(f"[SIGN_IN] Applied jobs count: {len(applied_jobs)}")
+            
+            # Get chat history (convert ObjectId to string)
+            chat_history_raw = user.get("chat_history", [])
+            chat_history = []
+            for chat in chat_history_raw:
+                chat_data = {
+                    "id": str(chat.get("_id", "")),
+                    "chat_id": str(chat.get("_id", "")),
+                    "chat_name": chat.get("chat_name", "New Chat"),
+                    "messages": chat.get("messages", []),
+                    "created_at": chat.get("created_at", "")
+                }
+                chat_history.append(chat_data)
+            logger.info(f"[SIGN_IN] Chat history count: {len(chat_history)}")
+            
+            return SignInResponse(
+                exists=True, 
+                user=user_profile,
+                saved_jobs=saved_jobs,
+                applied_jobs=applied_jobs,
+                chat_history=chat_history
+            )
+        else:
+            logger.info(f"[SIGN_IN] No user found with email: {request.email}")
+            return SignInResponse(exists=False, user=None)
+    except Exception as e:
+        logger.error(f"[SIGN_IN] Error in sign in: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/api/confirmOnboardingDetails")
 async def confirm_onboarding_details(onboard_confirmed_details: UserOnboardingResponse):
     """ Once the user confirms the details sent by the backend after parsing the resume,
         this endpoint is called to save the details in the database.
     """
+    logger.info(f"[ONBOARD] Confirming onboarding details for email: {onboard_confirmed_details.email}")
     try:
         user_data = onboard_confirmed_details.model_dump()
         # Check if user already exists? For now, just insert.
         # We might want to use email as a unique identifier.
         existing_user = await db.users.find_one({"email": user_data["email"]})
+        logger.info(f"[ONBOARD] DB query - existing user: {existing_user is not None}")
+        
         if existing_user:
              # Update existing user or raise error? Let's update for now or just return existing.
              # Assuming we want to create a new one or update.
              await db.users.update_one({"email": user_data["email"]}, {"$set": user_data})
+             logger.info(f"[ONBOARD] Updated existing user: {user_data['email']}")
              return {"message": "User details updated successfully", "email": user_data["email"]}
         
         # Initialize chat_history for new users
@@ -163,8 +234,10 @@ async def confirm_onboarding_details(onboard_confirmed_details: UserOnboardingRe
         user_data["applied_jobs"] = []
 
         result = await db.users.insert_one(user_data)
+        logger.info(f"[ONBOARD] Inserted new user: {user_data['email']}, ID: {result.inserted_id}")
         return {"message": "User onboarded successfully", "id": str(result.inserted_id)}
     except Exception as e:
+        logger.error(f"[ONBOARD] Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 #home page endpoints
@@ -177,13 +250,15 @@ async def chat_history_request(email: str):
         2. Return the chat history to the frontend.
         3. return only the id, and chat name for listing on home page.
     """
-    logger.info(f"Chat history request for email: {email}")
+    logger.info(f"[CHAT_HISTORY] Request for email: {email}")
     try:
         user = await db.users.find_one({"email": email})
+        logger.info(f"[CHAT_HISTORY] DB query - user found: {user is not None}")
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         
         chat_history = user.get("chat_history", [])
+        logger.info(f"[CHAT_HISTORY] Found {len(chat_history)} chats")
         response_chats = []
         for chat in chat_history:
             # Handle potential missing fields or different structure
@@ -198,7 +273,7 @@ async def chat_history_request(email: str):
             
         return ChatHistoryResponse(chats=response_chats)
     except Exception as e:
-        logger.error(f"Error fetching chat history: {str(e)}")
+        logger.error(f"[CHAT_HISTORY] Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/getAppliedJobs", response_model=GetAppliedJobsResponse)
@@ -207,13 +282,15 @@ async def get_applied_jobs(email: str):
         1. Fetch applied jobs from the database for the user.
         2. Return the applied jobs to the frontend.
     """
-    logger.info(f"Get applied jobs request for email: {email}")
+    logger.info(f"[GET_APPLIED_JOBS] Request for email: {email}")
     try:
         user = await db.users.find_one({"email": email})
+        logger.info(f"[GET_APPLIED_JOBS] DB query - user found: {user is not None}")
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
             
         applied_jobs_data = user.get("applied_jobs", [])
+        logger.info(f"[GET_APPLIED_JOBS] Found {len(applied_jobs_data)} applied jobs")
         applied_jobs = []
         for job in applied_jobs_data:
             applied_jobs.append(GetAppliedJobsResponseItem(
@@ -225,7 +302,7 @@ async def get_applied_jobs(email: str):
             
         return GetAppliedJobsResponse(applied_jobs=applied_jobs)
     except Exception as e:
-        logger.error(f"Error fetching applied jobs: {str(e)}")
+        logger.error(f"[GET_APPLIED_JOBS] Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/getSavedJobs", response_model=GetSavedJobsResponse)
@@ -234,13 +311,15 @@ async def get_saved_jobs(email: str):
         1. Fetch saved jobs from the database for the user.
         2. Return the saved jobs to the frontend.
     """
-    logger.info(f"Get saved jobs request for email: {email}")
+    logger.info(f"[GET_SAVED_JOBS] Request for email: {email}")
     try:
         user = await db.users.find_one({"email": email})
+        logger.info(f"[GET_SAVED_JOBS] DB query - user found: {user is not None}")
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
             
         saved_jobs_data = user.get("saved_jobs", [])
+        logger.info(f"[GET_SAVED_JOBS] Found {len(saved_jobs_data)} saved jobs")
         saved_jobs = []
         for job in saved_jobs_data:
             saved_jobs.append(GetSavedJobsResponseItem(
@@ -252,7 +331,7 @@ async def get_saved_jobs(email: str):
             
         return GetSavedJobsResponse(saved_jobs=saved_jobs)
     except Exception as e:
-        logger.error(f"Error fetching saved jobs: {str(e)}")
+        logger.error(f"[GET_SAVED_JOBS] Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -261,7 +340,7 @@ async def save_job_endpoint(request: SaveJobRequest):
     """ Endpoint to save a job for the user.
         1. Save the job to the user's saved jobs in the database.
     """
-    logger.info(f"Save job request for email: {request.email}, job_id: {request.job_id}")
+    logger.info(f"[SAVE_JOB] Request for email: {request.email}, job_id: {request.job_id}")
     try:
         job_data = {
             "job_id": request.job_id,
@@ -274,13 +353,14 @@ async def save_job_endpoint(request: SaveJobRequest):
             {"email": request.email},
             {"$addToSet": {"saved_jobs": job_data}}
         )
+        logger.info(f"[SAVE_JOB] DB update - matched: {result.matched_count}, modified: {result.modified_count}")
         
         if result.matched_count == 0:
             raise HTTPException(status_code=404, detail="User not found")
             
         return {"message": "Job saved successfully"}
     except Exception as e:
-        logger.error(f"Error saving job: {str(e)}")
+        logger.error(f"[SAVE_JOB] Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/applyJob")
@@ -291,7 +371,7 @@ async def apply_job_endpoint(request: ApplyJobRequest):
         3. after user clicks apply, in the job interface, a new tab will open with job link and job applied request popup will appear asking for confirmation
         4. once confirmed the this endpoint will be called to save the applied job in applied category
     """
-    logger.info(f"Apply job request for email: {request.email}, job_id: {request.job_id}")
+    logger.info(f"[APPLY_JOB] Request for email: {request.email}, job_id: {request.job_id}")
     try:
         # 1. Apply to the job via jsearch api.
         # Note: Actual JSearch API integration for application is not implemented here as per current context.
@@ -308,13 +388,14 @@ async def apply_job_endpoint(request: ApplyJobRequest):
             {"email": request.email},
             {"$addToSet": {"applied_jobs": job_data}}
         )
+        logger.info(f"[APPLY_JOB] DB update - matched: {result.matched_count}, modified: {result.modified_count}")
         
         if result.matched_count == 0:
             raise HTTPException(status_code=404, detail="User not found")
             
         return {"message": "Job applied successfully"}
     except Exception as e:
-        logger.error(f"Error applying job: {str(e)}")
+        logger.error(f"[APPLY_JOB] Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/updateUserProfile")
@@ -322,7 +403,7 @@ async def update_user_profile(request: UserProfileUpdateRequest):
     """ Endpoint to update user profile details.
         1. Update the user profile details in the database.
     """
-    logger.info(f"Update user profile request for email: {request.email}")
+    logger.info(f"[UPDATE_PROFILE] Request for email: {request.email}")
     try:
         update_data = request.model_dump(exclude_unset=True)
         email = update_data.pop("email")
@@ -334,13 +415,14 @@ async def update_user_profile(request: UserProfileUpdateRequest):
             {"email": email},
             {"$set": update_data}
         )
+        logger.info(f"[UPDATE_PROFILE] DB update - matched: {result.matched_count}, modified: {result.modified_count}")
         
         if result.matched_count == 0:
             raise HTTPException(status_code=404, detail="User not found")
             
         return {"message": "User profile updated successfully"}
     except Exception as e:
-        logger.error(f"Error updating user profile: {str(e)}")
+        logger.error(f"[UPDATE_PROFILE] Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/unsaveJob")
@@ -348,7 +430,7 @@ async def unsave_job_endpoint(request: SaveJobRequest):
     """ Endpoint to unsave a job for the user.
         1. Remove the job from the user's saved jobs in the database.
     """
-    logger.info(f"Unsave job request for email: {request.email}, job_id: {request.job_id}")
+    logger.info(f"[UNSAVE_JOB] Request for email: {request.email}, job_id: {request.job_id}")
     try:
         job_data = {
             "job_id": request.job_id,
@@ -361,13 +443,14 @@ async def unsave_job_endpoint(request: SaveJobRequest):
             {"email": request.email},
             {"$pull": {"saved_jobs": job_data}}
         )
+        logger.info(f"[UNSAVE_JOB] DB update - matched: {result.matched_count}, modified: {result.modified_count}")
         
         if result.matched_count == 0:
             raise HTTPException(status_code=404, detail="User not found")
             
         return {"message": "Job unsaved successfully"}
     except Exception as e:
-        logger.error(f"Error unsaving job: {str(e)}")
+        logger.error(f"[UNSAVE_JOB] Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/deleteChatSession")
@@ -375,19 +458,20 @@ async def delete_chat_session(email: str, chat_id: str):
     """ Endpoint to delete a chat session for the user.
         1. Remove the chat session from the user's chat history in the database.
     """
-    logger.info(f"Delete chat session request for email: {email}, chat_id: {chat_id}")
+    logger.info(f"[DELETE_CHAT] Request for email: {email}, chat_id: {chat_id}")
     try:
         result = await db.users.update_one(
             {"email": email},
             {"$pull": {"chat_history": {"_id": ObjectId(chat_id)}}}
         )
+        logger.info(f"[DELETE_CHAT] DB update - matched: {result.matched_count}, modified: {result.modified_count}")
         
         if result.matched_count == 0:
             raise HTTPException(status_code=404, detail="User not found")
             
         return {"message": "Chat session deleted successfully"}
     except Exception as e:
-        logger.error(f"Error deleting chat session: {str(e)}")
+        logger.error(f"[DELETE_CHAT] Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -401,9 +485,10 @@ async def create_chat_endpoint(request: CreateChatRequest):
     2. Initializes chat with context and greeting message
     3. Updates user document with new chat
     """
-    logger.info(f"Create chat request for email: {request.email}")
+    logger.info(f"[CREATE_CHAT] Request for email: {request.email}")
     try:
         result = await create_new_chat(request.email)
+        logger.info(f"[CREATE_CHAT] Chat created: {result.get('chat_id', 'N/A')}")
         
         if "error" in result:
             raise HTTPException(status_code=404, detail=result["error"])
@@ -416,7 +501,7 @@ async def create_chat_endpoint(request: CreateChatRequest):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error creating chat: {str(e)}")
+        logger.error(f"[CREATE_CHAT] Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -428,9 +513,9 @@ async def send_message_endpoint(request: ChatMessageRequest):
     2. Uses Gemini with function calling for job search
     3. Returns bot response and optional job cards
     """
-    logger.info(f"Send message request for email: {request.email}, chat_id: {request.chat_id}")
-    print(f"[MAIN] sendMessage called with email={request.email}, chat_id={request.chat_id}, message={request.message[:50] if request.message else 'None'}...")
-    print(f"[MAIN] selected_job_id={request.selected_job_id}, has_job_data={request.selected_job_data is not None}")
+    logger.info(f"[SEND_MESSAGE] Request for email: {request.email}, chat_id: {request.chat_id}")
+    print(f"[SEND_MESSAGE] message={request.message[:50] if request.message else 'None'}...")
+    print(f"[SEND_MESSAGE] selected_job_id={request.selected_job_id}, has_job_data={request.selected_job_data is not None}")
     try:
         result = await process_chat_message(
             email=request.email,
@@ -439,7 +524,7 @@ async def send_message_endpoint(request: ChatMessageRequest):
             selected_job_id=request.selected_job_id,
             selected_job_data=request.selected_job_data
         )
-        print(f"[MAIN] process_chat_message returned: {list(result.keys()) if result else 'None'}")
+        logger.info(f"[SEND_MESSAGE] Chat processed, response keys: {list(result.keys()) if result else 'None'}")
         
         if "error" in result and result.get("message", "").startswith("User not found"):
             raise HTTPException(status_code=404, detail=result["message"])
@@ -449,15 +534,13 @@ async def send_message_endpoint(request: ChatMessageRequest):
             jobs=result.get("jobs"),
             selected_job_details=result.get("selected_job_details")
         )
-        print(f"[MAIN] Response created successfully")
         return response
     except HTTPException:
         raise
     except Exception as e:
         import traceback
-        print(f"[MAIN] ERROR in send_message_endpoint: {str(e)}")
-        print(f"[MAIN] Traceback:\n{traceback.format_exc()}")
-        logger.error(f"Error sending message: {str(e)}")
+        logger.error(f"[SEND_MESSAGE] Error: {str(e)}")
+        logger.error(f"[SEND_MESSAGE] Traceback:\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -466,9 +549,10 @@ async def get_chat_messages_endpoint(email: str, chat_id: str):
     """
     Get all messages for a specific chat session.
     """
-    logger.info(f"Get chat messages request for email: {email}, chat_id: {chat_id}")
+    logger.info(f"[GET_CHAT_MESSAGES] Request for email: {email}, chat_id: {chat_id}")
     try:
         result = await get_chat_messages(email, chat_id)
+        logger.info(f"[GET_CHAT_MESSAGES] Found {len(result.get('messages', []))} messages")
         
         if "error" in result:
             raise HTTPException(status_code=404, detail=result["error"])
@@ -712,24 +796,109 @@ async def register_call_endpoint(request: RegisterCallRequest):
     Register a call with Retell AI for voice interview.
     Returns call_id and access_token needed to start the voice call.
     """
-    logger.info(f"Register call request for interview: {request.interview_id}")
+    logger.info(f"[REGISTER_CALL] Register call request for interview: {request.interview_id}")
     try:
         # Get interview details
         interview = await get_interview_by_id(request.interview_id)
         if not interview:
             raise HTTPException(status_code=404, detail="Interview not found")
         
-        # Prepare dynamic variables for Retell LLM
-        questions_text = "\n".join([f"- {q['question']}" for q in interview.get("questions", [])])
+        # Get user profile for resume context
+        user = await db.users.find_one({"email": request.user_email})
         
+        # Build candidate resume context
+        resume_context = ""
+        if user:
+            resume_parts = []
+            if user.get("profile_summary"):
+                resume_parts.append(f"Profile: {user.get('profile_summary')}")
+            if user.get("skills"):
+                resume_parts.append(f"Skills: {', '.join(user.get('skills', []))}")
+            if user.get("experience"):
+                exp_text = "; ".join(user.get("experience", [])[:3])
+                resume_parts.append(f"Experience: {exp_text}")
+            if user.get("education"):
+                edu_text = "; ".join(user.get("education", [])[:2])
+                resume_parts.append(f"Education: {edu_text}")
+            resume_context = " | ".join(resume_parts)
+        
+        # Build questions list - format for the Retell agent
+        questions = interview.get("questions", [])
+        questions_list = []
+        for i, q in enumerate(questions, 1):
+            question_text = q.get('question', '') if isinstance(q, dict) else str(q)
+            questions_list.append(f"{i}. {question_text}")
+        questions_text = "\n".join(questions_list)
+        
+        # Build job context
+        job_title = interview.get("job_title", "")
+        company_name = interview.get("company_name", "")
+        
+        # Get interview duration (default 10 minutes)
+        time_duration = interview.get("time_duration", "10")
+        
+        # Build the objective with full context
+        base_objective = interview.get("objective", "Assess the candidate's skills and experience")
+        
+        # Build job context string
+        job_context_str = ""
+        if job_title and company_name:
+            job_context_str = f"for the {job_title} role at {company_name}"
+        elif job_title:
+            job_context_str = f"for the {job_title} role"
+        
+        # Build realistic interview objective with natural flow
+        full_objective = f"""{base_objective}
+
+INTERVIEW FLOW:
+1. WARM-UP: Start with a friendly greeting. Introduce yourself briefly, thank them for their time, and ask a simple ice-breaker like "How are you doing today?" or "Tell me a bit about yourself"
+2. TRANSITION: After the warm-up, naturally transition into the interview questions
+3. QUESTIONING: Ask questions from the list one at a time. Listen actively. Ask 1-2 follow-ups if needed, then move on
+4. FEEDBACK: If an answer is unclear or incorrect, gently probe deeper or offer a hint. Don't just accept vague answers
+5. WRAP-UP: After all questions, ask if they have questions for you, then thank them and end professionally
+
+INTERVIEWER BEHAVIOR:
+- Be warm but professional, like a real hiring manager
+- Use the candidate's name occasionally
+- React naturally: "That's interesting", "I see", "Good point"
+- If answer is weak/wrong: probe with "Can you elaborate?" or "What if [scenario]?" - don't just move on
+- Acknowledge good answers briefly before moving on
+- Keep responses concise - this is about THEM, not you
+
+{f"Context: This is {job_context_str}. " if job_context_str else ""}Candidate: {resume_context if resume_context else "Background not provided"}
+
+RULES: {len(questions)} questions total. Max 2 follow-ups per question. Cover ALL questions. Stay on topic."""
+
+        # IMPORTANT: Variable names MUST match the placeholders in the Retell agent prompt
+        # The agent uses: {{mins}}, {{name}}, {{objective}}, {{questions}}
         dynamic_data = {
-            "name": request.user_name,  # For {{name}} placeholder in Retell agent
+            # These are the EXACT variable names the Retell agent expects
+            "mins": time_duration,  # For {{mins}} - interview duration
+            "name": request.user_name,  # For {{name}} - candidate name
+            "objective": full_objective,  # For {{objective}} - interview objective with rules
+            "questions": questions_text,  # For {{questions}} - the questions list
+            
+            # Additional variables that might be useful if agent prompt is updated
             "candidate_name": request.user_name,
-            "candidate_email": request.user_email,
-            "interview_name": interview.get("name", "Mock Interview"),
-            "interview_objective": interview.get("objective", ""),
-            "interview_questions": questions_text
+            "job_title": job_title,
+            "company_name": company_name,
+            "total_questions": str(len(questions)),
+            "candidate_background": resume_context,
         }
+        
+        print(f"\n[REGISTER_CALL] ========== RETELL CALL REGISTRATION ==========")
+        print(f"[REGISTER_CALL] Interview: {interview.get('name')}")
+        print(f"[REGISTER_CALL] Candidate: {request.user_name}")
+        print(f"[REGISTER_CALL] Duration: {time_duration} mins")
+        print(f"[REGISTER_CALL] Job: {job_title} at {company_name}" if job_title else "[REGISTER_CALL] Generic interview")
+        print(f"[REGISTER_CALL] Total Questions: {len(questions)}")
+        print(f"[REGISTER_CALL] Questions being sent:")
+        for q in questions_list[:3]:
+            print(f"[REGISTER_CALL]   {q}")
+        if len(questions_list) > 3:
+            print(f"[REGISTER_CALL]   ... and {len(questions_list) - 3} more")
+        print(f"[REGISTER_CALL] Objective Preview: {full_objective[:150]}...")
+        print(f"[REGISTER_CALL] ================================================\n")
         
         result = await register_retell_call(
             interviewer_id=request.interviewer_id,

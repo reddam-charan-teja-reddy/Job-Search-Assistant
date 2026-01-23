@@ -19,6 +19,34 @@ export interface JobCardData {
   };
 }
 
+export interface SignInResponse {
+  exists: boolean;
+  user: UserProfile | null;
+  saved_jobs?: Array<{
+    job_id: string;
+    job_title: string;
+    company_name: string;
+    job_link: string;
+  }>;
+  applied_jobs?: Array<{
+    job_id: string;
+    job_title: string;
+    company_name: string;
+    job_link: string;
+  }>;
+  chat_history?: Array<{
+    id: string;
+    chat_id: string;
+    chat_name: string;
+    messages: Array<{
+      sender: string;
+      message: string;
+      timestamp?: string;
+    }>;
+    created_at?: string;
+  }>;
+}
+
 export interface CreateChatResponse {
   chat_id: string;
   chat_name: string;
@@ -57,6 +85,23 @@ export const uploadResume = async (file: File): Promise<UserProfile> => {
   if (!response.ok) {
     const errorData = await response.json();
     throw new Error(errorData.detail || 'Failed to upload resume');
+  }
+
+  return response.json();
+};
+
+export const signIn = async (email: string): Promise<SignInResponse> => {
+  const response = await fetch('/api/signIn', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to sign in');
   }
 
   return response.json();
