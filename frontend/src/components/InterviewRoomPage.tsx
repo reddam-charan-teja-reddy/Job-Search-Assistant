@@ -357,22 +357,28 @@ export default function InterviewRoomPage({ userProfile }: InterviewRoomPageProp
               </div>
             )}
 
-            {/* Interview Details */}
+            {/* Interview Info - Show question count and duration without revealing questions */}
             <div className="rounded-xl p-6 mb-8 text-left" style={{ backgroundColor: '#1f2937', border: '1px solid #374151' }}>
               <h3 className="font-bold text-lg mb-4 flex items-center gap-2" style={{ color: '#ffffff' }}>
                 <MessageSquare className="w-5 h-5" style={{ color: '#60a5fa' }} />
-                Interview Questions ({interview.question_count})
+                Interview Overview
               </h3>
-              <ul className="space-y-3">
-                {interview.questions.map((q, i) => (
-                  <li key={q.id} className="flex items-start gap-3">
-                    <span className="flex-shrink-0 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-xs font-bold" style={{ color: '#ffffff' }}>
-                      {i + 1}
-                    </span>
-                    <span className="text-base" style={{ color: '#ffffff' }}>{q.question}</span>
-                  </li>
-                ))}
-              </ul>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center p-4 rounded-lg" style={{ backgroundColor: '#374151' }}>
+                  <p className="text-2xl font-bold" style={{ color: '#60a5fa' }}>{interview.question_count}</p>
+                  <p className="text-sm" style={{ color: '#d1d5db' }}>Questions</p>
+                </div>
+                <div className="text-center p-4 rounded-lg" style={{ backgroundColor: '#374151' }}>
+                  <p className="text-2xl font-bold" style={{ color: '#60a5fa' }}>{interview.time_duration}</p>
+                  <p className="text-sm" style={{ color: '#d1d5db' }}>Minutes</p>
+                </div>
+              </div>
+              {interview.job_title && (
+                <div className="mt-4 p-3 rounded-lg" style={{ backgroundColor: '#374151' }}>
+                  <p className="text-sm" style={{ color: '#9ca3af' }}>Practicing for:</p>
+                  <p className="font-medium" style={{ color: '#ffffff' }}>{interview.job_title} at {interview.company_name}</p>
+                </div>
+              )}
             </div>
 
             {/* Instructions */}

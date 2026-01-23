@@ -8,6 +8,6 @@ if not GEMINI_API_KEY:
 genai.configure(api_key=GEMINI_API_KEY)
 
 # Initialize the model for use in other files
-# Using gemini-1.5-flash as it is the current stable version. 
-# If 2.5 becomes available, it can be updated.
+# Using gemini-2.5-flash-lite as it is the current stable version. 
+# If 1.5 is deprecated 
 model = genai.GenerativeModel('gemini-2.5-flash-lite')

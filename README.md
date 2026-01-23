@@ -1,4 +1,4 @@
-# Job Search App with Chatbot & AI Mock Interviews (36hr)
+# Job Search App with Chatbot & AI Mock Interviews
 
 This repository contains a full-stack job search application with an AI chatbot that helps users discover roles, review resume fit, and prepare for interviews. It also includes an integrated AI Mock Interview platform with voice-based practice sessions powered by Retell AI. The backend is built with FastAPI and integrates Google Gemini for conversational AI, the JSearch API for job listings, and Retell AI for voice interviews. The frontend is a Vite + React app using a modern component library.
 
@@ -74,14 +74,14 @@ By default, frontend runs on `http://localhost:5173` (Vite) and backend on `http
 
 ## Application Routes
 
-| Route | Description |
-|-------|-------------|
-| `/` | Onboarding page (resume upload) |
-| `/home` | Home dashboard with quick actions |
-| `/chat/:chatId` | AI chat for job search |
-| `/profile` | User profile management |
-| `/interview-prep` | Interview preparation dashboard |
-| `/interview/:interviewId` | Voice interview room |
+| Route                     | Description                       |
+| ------------------------- | --------------------------------- |
+| `/`                       | Onboarding page (resume upload)   |
+| `/home`                   | Home dashboard with quick actions |
+| `/chat/:chatId`           | AI chat for job search            |
+| `/profile`                | User profile management           |
+| `/interview-prep`         | Interview preparation dashboard   |
+| `/interview/:interviewId` | Voice interview room              |
 
 ## Contributing
 

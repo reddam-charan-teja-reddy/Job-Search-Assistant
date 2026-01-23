@@ -105,6 +105,11 @@ async def generate_interview_questions(
     Returns:
         Dictionary with description and questions
     """
+    print(f"\n[INTERVIEW_SERVICE] ========== GENERATING INTERVIEW QUESTIONS ==========")
+    print(f"[INTERVIEW_SERVICE] Interview Name: {name}")
+    print(f"[INTERVIEW_SERVICE] Objective: {objective[:100]}..." if len(objective) > 100 else f"[INTERVIEW_SERVICE] Objective: {objective}")
+    print(f"[INTERVIEW_SERVICE] Number of questions to generate: {number}")
+    
     try:
         model = genai.GenerativeModel('gemini-2.5-flash')
         
@@ -115,6 +120,7 @@ async def generate_interview_questions(
             number=number
         )
         
+        print(f"[INTERVIEW_SERVICE] Calling Gemini API to generate questions...")
         response = model.generate_content(prompt)
         
         # Parse JSON from response
@@ -132,6 +138,12 @@ async def generate_interview_questions(
             q["id"] = str(i + 1)
             q["follow_up_count"] = 2  # Default follow-up count
         
+        print(f"[INTERVIEW_SERVICE] ✅ GENERATED {len(result.get('questions', []))} QUESTIONS:")
+        for i, q in enumerate(result.get("questions", [])):
+            print(f"[INTERVIEW_SERVICE]   Q{i+1}: {q.get('question', 'N/A')}")
+        print(f"[INTERVIEW_SERVICE] Description: {result.get('description', 'N/A')}")
+        print(f"[INTERVIEW_SERVICE] ================================================\n")
+        
         logger.info(f"Generated {len(result.get('questions', []))} interview questions")
         return result
         
@@ -148,6 +160,67 @@ async def generate_interview_questions(
                 {"id": "5", "question": "Where do you see yourself in 5 years?", "follow_up_count": 2}
             ]
         }
+
+
+async def generate_interview_objective(
+    job_title: str,
+    company_name: str,
+    job_description: str
+) -> str:
+    """
+    Generate a custom interview objective using Gemini based on job details.
+    
+    Args:
+        job_title: The job title
+        company_name: The company name
+        job_description: Full job description
+    
+    Returns:
+        AI-generated interview objective
+    """
+    print(f"\n[INTERVIEW_SERVICE] ========== GENERATING INTERVIEW OBJECTIVE ==========")
+    print(f"[INTERVIEW_SERVICE] Job Title: {job_title}")
+    print(f"[INTERVIEW_SERVICE] Company: {company_name}")
+    print(f"[INTERVIEW_SERVICE] Job Description Length: {len(job_description) if job_description else 0} chars")
+    
+    try:
+        model = genai.GenerativeModel('gemini-2.5-flash')
+        
+        prompt = f"""Based on the following job details, generate a concise interview objective (2-3 sentences) 
+that describes what skills and topics the mock interview will assess. Focus on key competencies 
+needed for the role.
+
+Job Title: {job_title}
+Company: {company_name}
+Job Description: {job_description[:1500] if job_description else 'Not provided'}
+
+Generate ONLY the objective text, no extra formatting or explanation. The objective should:
+1. Mention specific technical skills to be assessed
+2. Include relevant soft skills for the role
+3. Be encouraging and professional in tone
+
+Example format: "This interview will assess your [specific skills] abilities, focusing on [key areas]. 
+We'll explore your experience with [technologies/methodologies] and evaluate your [soft skills]."
+"""
+        
+        print(f"[INTERVIEW_SERVICE] Calling Gemini API to generate objective...")
+        response = model.generate_content(prompt)
+        objective = response.text.strip()
+        
+        print(f"[INTERVIEW_SERVICE] ✅ GENERATED OBJECTIVE:")
+        print(f"[INTERVIEW_SERVICE] {objective}")
+        print(f"[INTERVIEW_SERVICE] ================================================\n")
+        
+        logger.info(f"Generated interview objective: {objective[:100]}...")
+        return objective
+        
+    except Exception as e:
+        print(f"[INTERVIEW_SERVICE] ❌ ERROR generating objective: {str(e)}")
+        logger.error(f"Error generating interview objective: {str(e)}")
+        # Return a default objective on error
+        default_obj = f"Practice technical and behavioral interview for the {job_title} position at {company_name}. Focus on demonstrating relevant skills, problem-solving abilities, and cultural fit."
+        print(f"[INTERVIEW_SERVICE] Using default objective: {default_obj}")
+        return default_obj
 
 
 # ==================== INTERVIEW CRUD OPERATIONS ====================
@@ -565,20 +638,92 @@ async def create_job_interview(
     Returns:
         Created interview document
     """
-    # Get user profile for context
+    print(f"\n[INTERVIEW_SERVICE] ##########################################")
+    print(f"[INTERVIEW_SERVICE] ## CREATING JOB INTERVIEW ##")
+    print(f"[INTERVIEW_SERVICE] ##########################################")
+    print(f"[INTERVIEW_SERVICE] User: {user_email}")
+    print(f"[INTERVIEW_SERVICE] Job: {job_title} at {company_name}")
+    print(f"[INTERVIEW_SERVICE] Job ID: {job_id}")
+    print(f"[INTERVIEW_SERVICE] Questions: {question_count}, Duration: {time_duration} min")
+    print(f"[INTERVIEW_SERVICE] Job Description: {job_description[:200]}..." if len(job_description or '') > 200 else f"[INTERVIEW_SERVICE] Job Description: {job_description}")
+    
+    # Get user profile (full resume) for context
     user = await db.users.find_one({"email": user_email})
     
-    user_context = ""
+    # Build comprehensive resume context
+    resume_context = ""
     if user:
+        name = user.get("name", "Candidate")
         skills = user.get("skills", [])
         experience = user.get("experience", [])
-        user_context = f"\nCandidate skills: {', '.join(skills)}\nCandidate experience: {', '.join(experience)}"
+        education = user.get("education", [])
+        projects = user.get("projects", [])
+        profile_summary = user.get("profile_summary", "")
+        certifications = user.get("certificationsAndAchievementsAndAwards", [])
+        
+        resume_parts = [f"\n--- CANDIDATE RESUME ---"]
+        resume_parts.append(f"Name: {name}")
+        
+        if profile_summary:
+            resume_parts.append(f"\nProfile Summary: {profile_summary}")
+        
+        if skills:
+            resume_parts.append(f"\nSkills: {', '.join(skills)}")
+        
+        if experience:
+            resume_parts.append(f"\nWork Experience:")
+            for exp in experience[:5]:  # Limit to 5 experiences
+                resume_parts.append(f"  - {exp}")
+        
+        if education:
+            resume_parts.append(f"\nEducation:")
+            for edu in education[:3]:  # Limit to 3
+                resume_parts.append(f"  - {edu}")
+        
+        if projects:
+            resume_parts.append(f"\nProjects:")
+            for proj in projects[:3]:  # Limit to 3
+                resume_parts.append(f"  - {proj}")
+        
+        if certifications:
+            resume_parts.append(f"\nCertifications/Achievements:")
+            for cert in certifications[:3]:  # Limit to 3
+                resume_parts.append(f"  - {cert}")
+        
+        resume_parts.append(f"--- END RESUME ---")
+        resume_context = "\n".join(resume_parts)
+        
+        print(f"[INTERVIEW_SERVICE] ✅ Loaded full resume for: {name}")
+        print(f"[INTERVIEW_SERVICE]   - Skills: {len(skills)} items")
+        print(f"[INTERVIEW_SERVICE]   - Experience: {len(experience)} items")
+        print(f"[INTERVIEW_SERVICE]   - Education: {len(education)} items")
+        print(f"[INTERVIEW_SERVICE]   - Projects: {len(projects)} items")
+    else:
+        print(f"[INTERVIEW_SERVICE] ⚠️ No user profile found, generating generic questions")
     
-    # Generate questions based on job
+    # Generate AI-powered objective based on job description
     interview_name = f"{job_title} at {company_name}"
-    objective = f"Assess candidate's fit for {job_title} position at {company_name}"
-    context = f"Job Description:\n{job_description}\n{user_context}"
+    print(f"\n[INTERVIEW_SERVICE] Step 1: Generating AI-powered objective...")
+    objective = await generate_interview_objective(
+        job_title=job_title,
+        company_name=company_name,
+        job_description=job_description
+    )
     
+    # Build comprehensive context for question generation (JD + Resume)
+    context = f"""=== JOB DESCRIPTION ===
+Job Title: {job_title}
+Company: {company_name}
+
+{job_description}
+=== END JOB DESCRIPTION ==={resume_context}
+
+Generate interview questions that assess the candidate's fit for this specific role, 
+taking into account both the job requirements and the candidate's background from their resume.
+"""
+    
+    # Generate questions based on job and resume
+    print(f"[INTERVIEW_SERVICE] Step 2: Generating interview questions (with JD + Resume)...")
     generated = await generate_interview_questions(
         name=interview_name,
         objective=objective,
@@ -587,6 +732,7 @@ async def create_job_interview(
     )
     
     # Create the interview
+    print(f"[INTERVIEW_SERVICE] Step 3: Creating interview in database...")
     interview = await create_interview(
         user_email=user_email,
         name=interview_name,
@@ -599,5 +745,9 @@ async def create_job_interview(
         job_title=job_title,
         company_name=company_name
     )
+    
+    print(f"[INTERVIEW_SERVICE] ✅ INTERVIEW CREATED SUCCESSFULLY!")
+    print(f"[INTERVIEW_SERVICE] Interview ID: {interview.get('id')}")
+    print(f"[INTERVIEW_SERVICE] ##########################################\n")
     
     return interview

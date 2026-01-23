@@ -116,49 +116,29 @@ export default function InterviewPrepPage({
     }
   };
 
-  // Pre-fill the modal with job details and AI-generated objective
-  const handlePrepareJobInterview = async (job: Job) => {
+  // Pre-fill the modal with job details (objective will be generated on backend when Start Interview is clicked)
+  const handlePrepareJobInterview = (job: Job) => {
     setSelectedJob(job);
     setCustomName(`${job.title} at ${job.company}`);
     
-    // Set a default objective while generating AI suggestion
-    const defaultObjective = `Practice technical interview for ${job.title} position at ${job.company}. Focus on relevant skills and experience.`;
-    setCustomObjective(defaultObjective);
+    // Clear objective - it will be auto-generated on backend for job-based interviews
+    setCustomObjective('');
     
-    // Open the modal immediately so user sees pre-filled values
+    // Open the modal
     setShowCreateModal(true);
-    
-    // Generate AI-suggested objective using dedicated endpoint
-    setIsGeneratingObjective(true);
-    try {
-      const response = await fetch('/api/generateInterviewObjective', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          job_title: job.title,
-          company_name: job.company,
-          job_description: job.description || 'No description available',
-        }),
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.objective) {
-          setCustomObjective(data.objective);
-        }
-      }
-    } catch (error) {
-      console.error('Error generating objective:', error);
-      // Keep the default objective on error
-    } finally {
-      setIsGeneratingObjective(false);
-    }
   };
 
   // Handle starting interview from modal (works for both job-based and custom)
   const handleStartInterviewFromModal = async () => {
-    if (!userProfile?.email || !customName || !customObjective) {
-      toast.error('Please fill in all required fields');
+    // For job-based interviews, we don't need customObjective as it's generated on backend
+    if (!userProfile?.email || !customName) {
+      toast.error('Please fill in the interview name');
+      return;
+    }
+    
+    // For custom interviews, objective is required
+    if (!selectedJob && !customObjective) {
+      toast.error('Please fill in the objective');
       return;
     }
     
@@ -649,25 +629,29 @@ export default function InterviewPrepPage({
                   onChange={(e) => setCustomName(e.target.value)}
                   placeholder="e.g., Frontend Developer Interview"
                   className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white placeholder-gray-400 text-base"
+                  readOnly={!!selectedJob}
                 />
               </div>
               
-              <div>
-                <label className="block text-sm font-semibold text-gray-800 mb-2">
-                  Objective * {isGeneratingObjective && (
-                    <span className="ml-2 text-xs text-blue-600 animate-pulse font-normal">
-                      ✨ AI generating suggestion...
-                    </span>
-                  )}
-                </label>
-                <textarea
-                  value={customObjective}
-                  onChange={(e) => setCustomObjective(e.target.value)}
-                  placeholder="e.g., Assess technical skills in React and TypeScript"
-                  rows={3}
-                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white placeholder-gray-400 text-base resize-none"
-                />
-              </div>
+              {/* Only show objective field for custom interviews, hide for job-based */}
+              {!selectedJob && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-800 mb-2">
+                    Objective * {isGeneratingObjective && (
+                      <span className="ml-2 text-xs text-blue-600 animate-pulse font-normal">
+                        ✨ AI generating suggestion...
+                      </span>
+                    )}
+                  </label>
+                  <textarea
+                    value={customObjective}
+                    onChange={(e) => setCustomObjective(e.target.value)}
+                    placeholder="e.g., Assess technical skills in React and TypeScript"
+                    rows={3}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white placeholder-gray-400 text-base resize-none"
+                  />
+                </div>
+              )}
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -782,7 +766,7 @@ export default function InterviewPrepPage({
               </button>
               <button
                 onClick={handleStartInterviewFromModal}
-                disabled={isCreating || !customName || !customObjective}
+                disabled={isCreating || !customName || (!selectedJob && !customObjective)}
                 className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-semibold text-base shadow-lg"
               >
                 {isCreating ? (
