@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Send, Home, Sparkles, Loader2 } from 'lucide-react';
+import { Send, Home, Sparkles, Loader2, ArrowLeft, Bot, User, Briefcase, X } from 'lucide-react';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import { Job, Chat, Message } from '../App';
@@ -11,6 +11,7 @@ import {
   getChatMessages,
   JobCardData,
 } from '../services/api';
+import { ThemeToggle } from './ThemeToggle';
 
 interface ChatPageProps {
   chats: Chat[];
@@ -25,11 +26,10 @@ interface ChatPageProps {
 }
 
 const SUGGESTED_MESSAGES = [
-  'Show me frontend developer jobs',
-  'Find remote positions',
-  'What jobs match my skills?',
-  'Show senior level positions',
-  'Help me improve my resume',
+  'Show frontend jobs',
+  'Remote positions?',
+  'Resume tips',
+  'Mock interview',
 ];
 
 // Convert JobCardData from API to Job type for JobCard component
@@ -66,7 +66,6 @@ export default function ChatPage({
   const [currentChat, setCurrentChat] = useState<Chat | null>(null);
   const [message, setMessage] = useState('');
   const [displayedJobs, setDisplayedJobs] = useState<Job[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
   const [showJobs, setShowJobs] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -75,7 +74,6 @@ export default function ChatPage({
   const [actualChatId, setActualChatId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const jobsContainerRef = useRef<HTMLDivElement>(null);
-  const jobsPerPage = 3;
 
   // Initialize chat
   useEffect(() => {
@@ -88,19 +86,15 @@ export default function ChatPage({
 
       setIsLoading(true);
 
-      // Check if this is a valid server-side chat ID (MongoDB ObjectId format)
-      // Local IDs start with "chat-" and should trigger new chat creation
       const isLocalId = chatId?.startsWith('chat-');
       const isNewChat = !chatId || chatId === 'new' || isLocalId;
 
       try {
         if (!isNewChat) {
-          // Load existing chat from server
           const existingChat = chats.find((chat) => chat.id === chatId);
           if (existingChat) {
             setCurrentChat(existingChat);
             setActualChatId(chatId);
-            // Try to fetch latest messages from server
             try {
               const chatData = await getChatMessages(userEmail, chatId);
               const messages: Message[] = chatData.messages.map(
@@ -118,11 +112,9 @@ export default function ChatPage({
               };
               setCurrentChat(updatedChat);
             } catch (err) {
-              // Use cached data if server fails
               console.log('Using cached chat data');
             }
           } else {
-            // Chat not found locally, try to fetch from server
             try {
               const chatData = await getChatMessages(userEmail, chatId);
               const messages: Message[] = chatData.messages.map(
@@ -143,7 +135,6 @@ export default function ChatPage({
               setActualChatId(chatId);
               addChat(newChat);
             } catch (err) {
-              // Chat not found on server, create a new one
               console.log('Chat not found, creating new chat');
               const result = await createChat(userEmail);
               const newChat: Chat = {
@@ -166,7 +157,6 @@ export default function ChatPage({
             }
           }
         } else {
-          // Create new chat
           const result = await createChat(userEmail);
           const newChat: Chat = {
             id: result.chat_id,
@@ -184,12 +174,11 @@ export default function ChatPage({
           setCurrentChat(newChat);
           setActualChatId(result.chat_id);
           addChat(newChat);
-          // Update URL to include the new chat ID
           navigate(`/chat/${result.chat_id}`, { replace: true });
         }
       } catch (error) {
         console.error('Error initializing chat:', error);
-        toast.error('Failed to initialize chat. Please try again.');
+        toast.error('Failed to initialize chat');
       } finally {
         setIsLoading(false);
       }
@@ -198,12 +187,10 @@ export default function ChatPage({
     initializeChat();
   }, [chatId, userEmail]);
 
-  // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [currentChat?.messages]);
 
-  // Auto-scroll to jobs when they are loaded
   useEffect(() => {
     if (showJobs && displayedJobs.length > 0 && jobsContainerRef.current) {
       jobsContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
@@ -215,14 +202,12 @@ export default function ChatPage({
     if (!messageText.trim() || !currentChat || !actualChatId || isSending)
       return;
 
-    // Use passed parameters or fall back to state
     const finalJobId = jobId || selectedJobId || undefined;
     const finalJobData = jobData || selectedJobData || undefined;
 
     setIsSending(true);
     setMessage('');
 
-    // Add user message immediately for responsiveness
     const newUserMessage: Message = {
       id: `msg-${Date.now()}`,
       sender: 'user',
@@ -234,7 +219,6 @@ export default function ChatPage({
     setCurrentChat({ ...currentChat, messages: updatedMessages });
 
     try {
-      // Send message to backend
       const response = await sendMessage(
         userEmail,
         actualChatId,
@@ -243,7 +227,6 @@ export default function ChatPage({
         finalJobData
       );
 
-      // Add bot response
       const newBotMessage: Message = {
         id: `msg-${Date.now() + 1}`,
         sender: 'bot',
@@ -253,11 +236,9 @@ export default function ChatPage({
 
       const messagesWithBot = [...updatedMessages, newBotMessage];
 
-      // Update chat title if it's the first real message
       let newTitle = currentChat.title;
       if (currentChat.messages.length === 1) {
-        newTitle =
-          messageText.slice(0, 50) + (messageText.length > 50 ? '...' : '');
+        newTitle = messageText.slice(0, 50) + (messageText.length > 50 ? '...' : '');
       }
 
       const finalChat = {
@@ -268,31 +249,18 @@ export default function ChatPage({
       setCurrentChat(finalChat);
       updateChat(actualChatId, messagesWithBot, newTitle);
 
-      // Handle jobs if returned
       if (response.jobs && response.jobs.length > 0) {
         const convertedJobs = response.jobs.map(convertJobCardDataToJob);
         setDisplayedJobs(convertedJobs);
         setShowJobs(true);
-        setCurrentPage(1);
-        toast.success(`Found ${response.jobs.length} matching jobs!`);
+        toast.success(`Found ${response.jobs.length} jobs`);
       }
 
-      // Handle selected job details if returned
-      if (response.selected_job_details) {
-        const selectedJob = convertJobCardDataToJob(
-          response.selected_job_details
-        );
-        console.log('Selected job details:', selectedJob);
-      }
-
-      // Clear selected job after sending
       setSelectedJobId(null);
       setSelectedJobData(null);
     } catch (error) {
       console.error('Error sending message:', error);
-      toast.error('Failed to send message. Please try again.');
-
-      // Remove the user message if sending failed
+      toast.error('Failed to send message');
       setCurrentChat({ ...currentChat, messages: currentChat.messages });
     } finally {
       setIsSending(false);
@@ -302,7 +270,6 @@ export default function ChatPage({
   const handleChooseJob = (job: Job) => {
     if (!currentChat) return;
 
-    // Convert Job back to JobCardData format for the API
     const jobData: JobCardData = {
       job_id: job.id,
       job_title: job.title,
@@ -318,264 +285,178 @@ export default function ChatPage({
       job_highlights: job.highlights,
     };
 
-    // Automatically send a message about this job with the job data passed directly
-    // (not via state, since React state updates are async)
-    const chooseMessage = `I'm interested in the ${job.title} position at ${job.company}. Can you tell me more about it and help me prepare for this role?`;
+    const chooseMessage = `Check out ${job.title} at ${job.company}`;
     handleSendMessage(chooseMessage, job.id, jobData);
-
-    toast.success('Job selected for discussion');
+    toast.success('Job selected');
   };
-
-  const totalPages = Math.ceil(displayedJobs.length / jobsPerPage);
-  const paginatedJobs = displayedJobs.slice(
-    (currentPage - 1) * jobsPerPage,
-    currentPage * jobsPerPage
-  );
 
   if (isLoading) {
     return (
-      <div className='h-screen flex items-center justify-center bg-gray-50'>
-        <div className='text-center'>
-          <Loader2 className='w-12 h-12 animate-spin text-blue-600 mx-auto mb-4' />
-          <p className='text-gray-600'>Initializing chat...</p>
-        </div>
+      <div className='h-screen flex items-center justify-center bg-background'>
+        <Loader2 className='w-8 h-8 animate-spin text-primary' />
       </div>
     );
   }
 
   return (
-    <div className='h-screen flex flex-col bg-gray-50'>
-      {/* Header */}
-      <header className='bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between'>
-        <h2 className='text-gray-900 font-medium'>
-          {currentChat?.title || 'Job Search'}
-        </h2>
+    <div className='h-screen flex flex-col bg-background text-foreground overflow-hidden'>
+      {/* Compact Header */}
+      <header className='h-14 border-b border-border bg-background flex items-center justify-between px-6 shrink-0 z-10'>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => navigate('/home')}
+            className="p-2 -ml-2 hover:bg-muted rounded-full transition-colors text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Bot className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h2 className='text-sm font-semibold leading-tight'>{currentChat?.title || 'Job Assistant'}</h2>
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                <span className="text-xs text-muted-foreground">Online</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <button
           onClick={() => navigate('/home')}
-          className='flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors'>
-          <Home className='w-5 h-5' />
-          <span>Home</span>
+          className='text-sm font-medium text-muted-foreground hover:text-foreground transition-colors'>
+          Dashboard
         </button>
+        <div className="ml-4">
+          <ThemeToggle />
+        </div>
       </header>
 
-      {/* Main Content */}
+      {/* Main Layout */}
       <div className='flex-1 flex overflow-hidden'>
-        {/* Left Side - Chat (40%) */}
-        <div className='w-[40%] border-r border-gray-200 bg-white flex flex-col'>
-          {/* Messages */}
-          <div className='flex-1 overflow-y-auto p-4 space-y-4'>
+
+        {/* Chat Column */}
+        <div className={`flex flex-col bg-card transition-all duration-300 ${showJobs && displayedJobs.length > 0 ? 'w-[45%] border-r border-border' : 'w-full max-w-3xl mx-auto border-x border-border'}`}>
+
+          {/* Messages Area */}
+          <div className='flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent'>
             {currentChat?.messages.map((msg) => (
               <div
                 key={msg.id}
-                className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'
+                className={`flex gap-3 ${msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${msg.sender === 'user' ? 'bg-secondary' : 'bg-primary'}`}>
+                  {msg.sender === 'user' ? <User className="w-4 h-4 text-secondary-foreground" /> : <Bot className="w-4 h-4 text-primary-foreground" />}
+                </div>
+
+                <div className={`max-w-[85%] rounded-2xl px-5 py-3.5 shadow-sm text-sm leading-relaxed ${msg.sender === 'user'
+                  ? 'bg-secondary text-secondary-foreground rounded-tr-none'
+                  : 'bg-card border border-border text-foreground rounded-tl-none'
                   }`}>
-                <div
-                  className={`max-w-[85%] px-4 py-3 rounded-2xl ${msg.sender === 'user'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-900'
-                    }`}>
-                  {msg.sender === 'bot' && (
-                    <div className='flex items-center gap-2 mb-1'>
-                      <Sparkles className='w-4 h-4 text-blue-600' />
-                      <span className='text-blue-600 text-sm font-medium'>
-                        JobBot AI
-                      </span>
-                    </div>
-                  )}
                   {msg.sender === 'bot' ? (
-                    <div className='text-sm prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0 prose-headings:my-2'>
+                    <div className='prose prose-invert prose-sm max-w-none'>
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
                     </div>
                   ) : (
-                    <p className='text-sm whitespace-pre-wrap'>{msg.content}</p>
+                    <p className="whitespace-pre-wrap">{msg.content}</p>
                   )}
                 </div>
               </div>
             ))}
 
-            {/* Typing indicator */}
             {isSending && (
-              <div className='flex justify-start'>
-                <div className='bg-gray-100 px-4 py-3 rounded-2xl'>
-                  <div className='flex items-center gap-2 mb-1'>
-                    <Sparkles className='w-4 h-4 text-blue-600' />
-                    <span className='text-blue-600 text-sm font-medium'>
-                      JobBot AI
-                    </span>
-                  </div>
-                  <div className='flex items-center gap-2'>
-                    <p className='text-sm text-gray-500'>Thinking...</p>
-                    <Loader2 className='w-4 h-4 animate-spin text-blue-600' />
-                  </div>
+              <div className="flex gap-3">
+                <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0">
+                  <Bot className="w-4 h-4 text-primary-foreground" />
+                </div>
+                <div className="bg-card border border-border/50 px-4 py-3 rounded-2xl rounded-tl-none flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Thinking</span>
+                  <span className="flex gap-1">
+                    <span className="w-1 h-1 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                    <span className="w-1 h-1 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                    <span className="w-1 h-1 bg-primary rounded-full animate-bounce"></span>
+                  </span>
                 </div>
               </div>
             )}
-
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Suggested Messages */}
-          {currentChat && currentChat.messages.length <= 2 && !isSending && (
-            <div className='px-4 pb-3'>
-              <p className='text-gray-500 text-sm mb-2'>Suggested:</p>
-              <div className='flex flex-wrap gap-2'>
-                {SUGGESTED_MESSAGES.map((suggested, index) => (
+          {/* Input Area */}
+          <div className='p-4 border-t border-border bg-background'>
+            {/* Suggestions */}
+            {currentChat && currentChat.messages.length <= 2 && !isSending && (
+              <div className="flex gap-2 overflow-x-auto pb-3 scrollbar-hide">
+                {SUGGESTED_MESSAGES.map((s, i) => (
                   <button
-                    key={index}
-                    onClick={() => handleSendMessage(suggested)}
-                    className='px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-sm hover:bg-gray-200 transition-colors'>
-                    {suggested}
+                    key={i}
+                    onClick={() => handleSendMessage(s)}
+                    className="whitespace-nowrap px-3 py-1.5 rounded-full bg-muted/50 hover:bg-muted text-xs text-muted-foreground hover:text-foreground border border-transparent hover:border-border transition-all">
+                    {s}
                   </button>
                 ))}
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Selected Job Indicator */}
-          {selectedJobId && (
-            <div className='px-4 pb-2'>
-              <div className='flex items-center gap-2 text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded-lg'>
-                <span>Selected job for discussion</span>
-                <button
-                  onClick={() => setSelectedJobId(null)}
-                  className='text-blue-400 hover:text-blue-600'>
-                  ✕
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Message Input */}
-          <div className='p-4 border-t border-gray-200'>
-            <div className='flex gap-2'>
+            <div className='relative flex items-center gap-2 max-w-3xl mx-auto'>
               <input
                 type='text'
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                onKeyPress={(e) =>
-                  e.key === 'Enter' && !isSending && handleSendMessage()
-                }
-                placeholder='Type your message...'
+                onKeyPress={(e) => e.key === 'Enter' && !isSending && handleSendMessage()}
+                placeholder='Ask about jobs, skills, or interview tips...'
                 disabled={isSending}
-                className='flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none disabled:bg-gray-100'
+                className='w-full bg-card border border-border rounded-full pl-5 pr-12 py-3.5 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary disabled:opacity-50 transition-all shadow-sm'
               />
               <button
                 onClick={() => handleSendMessage()}
                 disabled={isSending || !message.trim()}
-                title='Send message'
-                className='px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed'>
-                {isSending ? (
-                  <Loader2 className='w-5 h-5 animate-spin' />
-                ) : (
-                  <Send className='w-5 h-5' />
-                )}
+                className='absolute right-2 p-2 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 disabled:opacity-0 disabled:scale-75 transition-all shadow-md'>
+                <Send className='w-4 h-4' />
               </button>
             </div>
+            <p className="text-center text-[10px] text-muted-foreground/40 mt-2">
+              AI can make mistakes. Verify important info.
+            </p>
           </div>
         </div>
 
-        {/* Right Side - Jobs (60%) */}
-        <div className='w-[60%] bg-gray-50 flex flex-col'>
-          {showJobs && displayedJobs.length > 0 ? (
-            <>
-              {/* Jobs List */}
-              <div
-                ref={jobsContainerRef}
-                className='flex-1 overflow-y-auto p-6'>
-                <div className='mb-4'>
-                  <h3 className='text-gray-900 font-medium text-lg'>
-                    Matching Jobs
-                  </h3>
-                  <p className='text-gray-600'>
-                    Found {displayedJobs.length} opportunities for you
-                  </p>
-                </div>
-                <div className='space-y-4'>
-                  {paginatedJobs.map((job) => (
-                    <JobCard
-                      key={job.id}
-                      job={job}
-                      onSave={saveJob}
-                      onUnsave={unsaveJob}
-                      onApply={applyToJob}
-                      onChoose={handleChooseJob}
-                      isSaved={savedJobs.some((j) => j.id === job.id)}
-                      isApplied={appliedJobs.some((j) => j.id === job.id)}
-                    />
-                  ))}
-                </div>
-              </div>
+        {/* Jobs Sidebar */}
+        {showJobs && displayedJobs.length > 0 && (
+          <div className="flex-1 bg-background flex flex-col min-w-0 animate-fadeIn">
+            <div className="p-4 border-b border-border/40 flex items-center justify-between">
+              <h3 className="font-semibold flex items-center gap-2">
+                <Briefcase className="w-4 h-4 text-primary" />
+                Recommended Jobs <span className="text-muted-foreground text-xs font-normal">({displayedJobs.length})</span>
+              </h3>
+              <button
+                onClick={() => setShowJobs(false)}
+                className="text-xs text-muted-foreground hover:text-foreground underline">
+                Hide
+              </button>
+            </div>
 
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className='border-t border-gray-200 bg-white px-6 py-4'>
-                  <div className='flex items-center justify-between'>
-                    <p className='text-gray-600 text-sm'>
-                      Showing {(currentPage - 1) * jobsPerPage + 1} -{' '}
-                      {Math.min(
-                        currentPage * jobsPerPage,
-                        displayedJobs.length
-                      )}{' '}
-                      of {displayedJobs.length} jobs
-                    </p>
-                    <div className='flex gap-2'>
-                      <button
-                        onClick={() =>
-                          setCurrentPage((prev) => Math.max(1, prev - 1))
-                        }
-                        disabled={currentPage === 1}
-                        className='px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'>
-                        Previous
-                      </button>
-                      <div className='flex gap-1'>
-                        {Array.from(
-                          { length: Math.min(totalPages, 5) },
-                          (_, i) => i + 1
-                        ).map((page) => (
-                          <button
-                            key={page}
-                            onClick={() => setCurrentPage(page)}
-                            className={`w-10 h-10 rounded-lg transition-colors ${currentPage === page
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-white border border-gray-300 hover:bg-gray-50'
-                              }`}>
-                            {page}
-                          </button>
-                        ))}
-                      </div>
-                      <button
-                        onClick={() =>
-                          setCurrentPage((prev) =>
-                            Math.min(totalPages, prev + 1)
-                          )
-                        }
-                        disabled={currentPage === totalPages}
-                        className='px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'>
-                        Next
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className='flex-1 flex items-center justify-center'>
-              <div className='text-center max-w-md'>
-                <div className='w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4'>
-                  <Sparkles className='w-10 h-10 text-blue-600' />
-                </div>
-                <h3 className='text-gray-900 font-medium text-lg mb-2'>
-                  Start chatting to see jobs
-                </h3>
-                <p className='text-gray-600'>
-                  Tell me what kind of job you're looking for and I'll search
-                  for matching opportunities. You can also ask for resume tips,
-                  interview advice, or career guidance!
-                </p>
+            <div ref={jobsContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4">
+              {displayedJobs.map((job) => (
+                <JobCard
+                  key={job.id}
+                  job={job}
+                  onSave={saveJob}
+                  onUnsave={unsaveJob}
+                  onApply={applyToJob}
+                  onChoose={handleChooseJob}
+                  isSaved={savedJobs.some((j) => j.id === job.id)}
+                  isApplied={appliedJobs.some((j) => j.id === job.id)}
+                />
+              ))}
+
+              <div className="p-8 text-center text-muted-foreground text-sm">
+                <p>End of recommendations</p>
+                <p className="text-xs mt-1">Refine your search for more results</p>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

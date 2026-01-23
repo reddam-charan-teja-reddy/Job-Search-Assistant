@@ -43,67 +43,27 @@ function ApplyConfirmationModal({
   const modalRoot = document.getElementById('modal-root') || document.body;
 
   return createPortal(
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 99999,
-        padding: '20px',
-      }}>
-      <div 
-        style={{ 
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          padding: '24px',
-          width: '100%',
-          maxWidth: '350px',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-        }}
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[99999] p-4 backdrop-blur-sm animate-fadeIn">
+      <div
+        className="bg-card w-full max-w-sm rounded-2xl p-6 shadow-2xl border border-secondary"
         onClick={(e) => e.stopPropagation()}>
-        <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#111827', marginBottom: '8px', textAlign: 'center' }}>
+        <h3 className="text-xl font-semibold text-foreground mb-2 text-center">
           Confirm Application
         </h3>
-        <p style={{ color: '#4B5563', marginBottom: '20px', textAlign: 'center', fontSize: '14px' }}>
-          Did you complete your application for{' '}
-          <span style={{ fontWeight: 500 }}>{job.title}</span> at{' '}
-          <span style={{ fontWeight: 500 }}>{job.company}</span>?
+        <p className="text-muted-foreground mb-6 text-center">
+          Confirm you applied to <span className="text-primary font-medium">{job.title}</span>?
         </p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <div className="flex flex-col gap-3">
           <button
             onClick={onConfirm}
-            style={{
-              width: '100%',
-              padding: '14px 16px',
-              backgroundColor: '#16a34a',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '14px',
-              fontWeight: 500,
-              cursor: 'pointer',
-            }}>
-            Yes, I applied!
+            className="w-full py-3 bg-primary text-primary-foreground font-semibold rounded-xl hover:bg-primary/90 transition-all flex items-center justify-center gap-2">
+            <CheckCircle className="w-5 h-5" />
+            Yes, Confirmed
           </button>
           <button
             onClick={onCancel}
-            style={{
-              width: '100%',
-              padding: '12px 16px',
-              backgroundColor: 'white',
-              color: '#374151',
-              border: '1px solid #D1D5DB',
-              borderRadius: '8px',
-              fontSize: '14px',
-              cursor: 'pointer',
-            }}>
-            No, I didn't apply
+            className="w-full py-3 bg-muted/50 text-foreground font-medium rounded-xl hover:bg-muted transition-all">
+            Cancel
           </button>
         </div>
       </div>
@@ -128,13 +88,7 @@ export default function JobDetailModal({
 
   const handleApplyClick = () => {
     if (isApplied) return;
-
-    // Open the job link in a new tab
-    if (job.applyLink) {
-      window.open(job.applyLink, '_blank');
-    }
-
-    // Show confirmation modal
+    if (job.applyLink) window.open(job.applyLink, '_blank');
     setShowApplyConfirmation(true);
   };
 
@@ -148,11 +102,7 @@ export default function JobDetailModal({
   };
 
   const handleSaveToggle = () => {
-    if (isSaved) {
-      onUnsave(job);
-    } else {
-      onSave(job);
-    }
+    isSaved ? onUnsave(job) : onSave(job);
   };
 
   const modalRoot = document.getElementById('modal-root') || document.body;
@@ -160,175 +110,148 @@ export default function JobDetailModal({
   const modalContent = (
     <>
       <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '24px',
-          overflow: 'auto',
-        }}
+        className="fixed inset-0 bg-black/80 flex items-center justify-center z-[9999] p-4 sm:p-6 overflow-hidden backdrop-blur-sm animate-fadeIn"
         onClick={onClose}>
         <div
-          className='bg-white rounded-xl w-full max-w-3xl shadow-2xl flex flex-col'
-          style={{ maxHeight: 'calc(100vh - 48px)' }}
+          className="bg-card w-full max-w-5xl h-full max-h-[90vh] rounded-2xl shadow-2xl flex flex-col border border-border animate-in fade-in zoom-in-95 duration-200"
           onClick={(e) => e.stopPropagation()}>
+
           {/* Header */}
-          <div className='flex items-start justify-between p-6 border-b border-gray-200'>
-            <div className='flex gap-4'>
-              {job.employerLogo && (
-                <img
-                  src={job.employerLogo}
-                  alt={job.company}
-                  className='w-16 h-16 rounded-lg object-contain bg-gray-100 p-2'
-                />
-              )}
+          <div className="flex items-start justify-between p-6 border-b border-border/50 bg-background/50">
+            <div className="flex gap-5">
+              <div className="w-16 h-16 rounded-xl bg-background border border-border flex items-center justify-center p-3 shadow-sm">
+                {job.employerLogo ? (
+                  <img src={job.employerLogo} alt={job.company} className="w-full h-full object-contain" />
+                ) : (
+                  <Building2 className="w-8 h-8 text-muted-foreground" />
+                )}
+              </div>
               <div>
-                <div className='flex items-center gap-2 mb-1'>
-                  <h2 className='text-2xl font-bold text-gray-900'>
-                    {job.title}
-                  </h2>
-                  {isApplied && (
-                    <span className='px-2 py-1 bg-green-100 text-green-700 text-xs rounded'>
-                      Applied
-                    </span>
-                  )}
-                  {isSaved && !isApplied && (
-                    <span className='px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded'>
-                      Saved
-                    </span>
-                  )}
+                <h2 className="text-2xl font-bold text-foreground leading-tight mb-1">
+                  {job.title}
+                </h2>
+                <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
+                  <span className="font-medium text-foreground">{job.company}</span>
+                  <span>•</span>
+                  <span className="text-sm">{job.location}</span>
                 </div>
-                <p className='text-lg text-gray-700 flex items-center gap-2'>
-                  <Building2 className='w-5 h-5' />
-                  {job.company}
-                </p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className='p-2 hover:bg-gray-100 rounded-lg transition-colors'>
-              <X className='w-6 h-6 text-gray-500' />
+              className="p-2 -mr-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-full transition-all">
+              <X className="w-6 h-6" />
             </button>
           </div>
 
-          {/* Content */}
-          <div className='flex-1 overflow-y-auto p-6' style={{ minHeight: '200px' }}>
-            {/* Job Meta */}
-            <div className='grid grid-cols-2 md:grid-cols-4 gap-4 mb-6'>
-              <div className='flex items-center gap-2 text-gray-600'>
-                <MapPin className='w-5 h-5' />
-                <span>{job.location}</span>
-                {job.isRemote && (
-                  <span className='px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded'>
-                    Remote
-                  </span>
-                )}
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-8">
+            {/* Meta Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="p-4 rounded-xl bg-secondary/30 border border-secondary/50">
+                <Briefcase className="w-5 h-5 text-primary mb-2" />
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Role</p>
+                <p className="font-medium text-foreground mt-0.5">{job.role}</p>
               </div>
-              <div className='flex items-center gap-2 text-gray-600'>
-                <Briefcase className='w-5 h-5' />
-                <span>{job.role}</span>
+              <div className="p-4 rounded-xl bg-secondary/30 border border-secondary/50">
+                <MapPin className="w-5 h-5 text-primary mb-2" />
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Location</p>
+                <p className="font-medium text-foreground mt-0.5">{job.location}</p>
               </div>
-              <div className='flex items-center gap-2 text-gray-600'>
-                <DollarSign className='w-5 h-5' />
-                <span>{job.salary}</span>
+              <div className="p-4 rounded-xl bg-secondary/30 border border-secondary/50">
+                <DollarSign className="w-5 h-5 text-primary mb-2" />
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Salary</p>
+                <p className="font-medium text-foreground mt-0.5">{job.salary}</p>
               </div>
-              {job.postedAt && (
-                <div className='flex items-center gap-2 text-gray-600'>
-                  <Clock className='w-5 h-5' />
-                  <span>Posted: {job.postedAt}</span>
-                </div>
-              )}
+              <div className="p-4 rounded-xl bg-secondary/30 border border-secondary/50">
+                <Clock className="w-5 h-5 text-primary mb-2" />
+                <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Posted</p>
+                <p className="font-medium text-foreground mt-0.5">{job.postedAt || 'Recently'}</p>
+              </div>
             </div>
 
             {/* Description */}
-            <div className='mb-6'>
-              <h3 className='text-lg font-semibold text-gray-900 mb-3'>
-                Job Description
+            <div>
+              <h3 className="text-lg font-bold text-foreground mb-3 flex items-center gap-2">
+                <div className="w-1 h-5 bg-primary rounded-full" />
+                About the Role
               </h3>
-              <div className='text-gray-700 whitespace-pre-wrap'>
+              <div className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
                 {job.description}
               </div>
             </div>
 
             {/* Highlights */}
             {job.highlights && (
-              <div className='space-y-4'>
-                {job.highlights.Qualifications &&
-                  job.highlights.Qualifications.length > 0 && (
-                    <div>
-                      <h3 className='text-lg font-semibold text-gray-900 mb-3'>
-                        Qualifications
-                      </h3>
-                      <ul className='list-disc list-inside space-y-1 text-gray-700'>
-                        {job.highlights.Qualifications.map((qual, index) => (
-                          <li key={index}>{qual}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                {job.highlights.Responsibilities &&
-                  job.highlights.Responsibilities.length > 0 && (
-                    <div>
-                      <h3 className='text-lg font-semibold text-gray-900 mb-3'>
-                        Responsibilities
-                      </h3>
-                      <ul className='list-disc list-inside space-y-1 text-gray-700'>
-                        {job.highlights.Responsibilities.map((resp, index) => (
-                          <li key={index}>{resp}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+              <div className="grid md:grid-cols-2 gap-8">
+                {job.highlights.Qualifications && (
+                  <div>
+                    <h3 className="text-lg font-bold text-foreground mb-3 flex items-center gap-2">
+                      <div className="w-1 h-5 bg-primary rounded-full" />
+                      Qualifications
+                    </h3>
+                    <ul className="space-y-2">
+                      {job.highlights.Qualifications.map((q, i) => (
+                        <li key={i} className="flex gap-2 text-muted-foreground">
+                          <span className="text-primary mt-1.5">•</span>
+                          <span>{q}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {job.highlights.Responsibilities && (
+                  <div>
+                    <h3 className="text-lg font-bold text-foreground mb-3 flex items-center gap-2">
+                      <div className="w-1 h-5 bg-primary rounded-full" />
+                      Responsibilities
+                    </h3>
+                    <ul className="space-y-2">
+                      {job.highlights.Responsibilities.map((r, i) => (
+                        <li key={i} className="flex gap-2 text-muted-foreground">
+                          <span className="text-primary mt-1.5">•</span>
+                          <span>{r}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
           </div>
 
           {/* Footer Actions */}
-          <div className='p-6 border-t border-gray-200 flex gap-4'>
+          <div className="p-6 border-t border-border bg-background/50 flex flex-col sm:flex-row gap-4">
             <button
               onClick={handleSaveToggle}
-              className={`flex-1 px-6 py-3 rounded-lg flex items-center justify-center gap-2 transition-colors ${
-                isSaved
-                  ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                  : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
-              }`}>
+              className={`flex-1 py-3 px-6 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all ${isSaved
+                  ? 'bg-secondary/50 text-primary border-2 border-primary/20'
+                  : 'bg-card border-2 border-border hover:border-primary/50 text-muted-foreground hover:text-foreground'
+                }`}>
               {isSaved ? (
                 <>
-                  <BookmarkX className='w-5 h-5' />
-                  Unsave Job
+                  <BookmarkX className="w-5 h-5" /> Unsave Job
                 </>
               ) : (
                 <>
-                  <Bookmark className='w-5 h-5' />
-                  Save Job
+                  <Bookmark className="w-5 h-5" /> Save for Later
                 </>
               )}
             </button>
             <button
               onClick={handleApplyClick}
               disabled={isApplied}
-              className={`flex-1 px-6 py-3 rounded-lg flex items-center justify-center gap-2 transition-colors ${
-                isApplied
-                  ? 'bg-green-100 text-green-700 cursor-not-allowed'
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
-              }`}>
+              className={`flex-[2] py-3 px-6 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg ${isApplied
+                  ? 'bg-green-500/20 text-green-500 cursor-not-allowed border border-green-500/50'
+                  : 'bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-primary/25'
+                }`}>
               {isApplied ? (
                 <>
-                  <CheckCircle className='w-5 h-5' />
-                  Already Applied
+                  <CheckCircle className="w-5 h-5" /> Application Sent
                 </>
               ) : (
                 <>
-                  <ExternalLink className='w-5 h-5' />
-                  Apply Now
+                  <ExternalLink className="w-5 h-5" /> Apply Now
                 </>
               )}
             </button>
@@ -336,7 +259,6 @@ export default function JobDetailModal({
         </div>
       </div>
 
-      {/* Apply Confirmation Modal */}
       <ApplyConfirmationModal
         isOpen={showApplyConfirmation}
         job={job}

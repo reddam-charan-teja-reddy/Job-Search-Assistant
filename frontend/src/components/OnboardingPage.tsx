@@ -177,22 +177,21 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-6">
-      <div className="max-w-2xl w-full bg-white rounded-2xl shadow-xl p-8">
+    <div className="min-h-screen bg-background flex items-center justify-center p-6">
+      <div className="max-w-2xl w-full bg-card rounded-2xl shadow-xl p-8 border border-border">
         <div className="mb-8">
-          <h1 className="text-gray-900 mb-2">Welcome to JobBot</h1>
-          <p className="text-gray-600">Let's get started by uploading your resume</p>
+          <h1 className="text-foreground text-2xl font-bold mb-2">Welcome to JobBot</h1>
+          <p className="text-muted-foreground">Let's get started by uploading your resume</p>
         </div>
 
         {/* Resume Upload Section */}
         <div className="mb-8">
-          <label className="block text-gray-700 mb-3">Upload Resume</label>
+          <label className="block text-foreground mb-3 font-medium">Upload Resume</label>
           <div
-            className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${
-              resumeUploaded
-                ? 'border-green-500 bg-green-50'
-                : 'border-gray-300 hover:border-blue-500 hover:bg-blue-50'
-            }`}
+            className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${resumeUploaded
+              ? 'border-green-500 bg-green-500/10'
+              : 'border-border hover:border-primary hover:bg-primary/5'
+              }`}
           >
             <input
               type="file"
@@ -204,8 +203,8 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
             <label htmlFor="resume-upload" className="cursor-pointer">
               {isUploading ? (
                 <div className="flex flex-col items-center">
-                  <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
-                  <p className="text-blue-600">Analyzing resume...</p>
+                  <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
+                  <p className="text-primary font-medium">Analyzing resume...</p>
                 </div>
               ) : resumeUploaded ? (
                 <div className="flex flex-col items-center">
@@ -216,9 +215,9 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
                 </div>
               ) : (
                 <div className="flex flex-col items-center">
-                  <Upload className="w-12 h-12 text-gray-400 mb-4" />
-                  <p className="text-gray-600">Click to upload or drag and drop</p>
-                  <p className="text-gray-400 text-sm mt-1">PDF, DOC, DOCX (Max 10MB)</p>
+                  <Upload className="w-12 h-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground font-medium">Click to upload or drag and drop</p>
+                  <p className="text-muted-foreground/70 text-sm mt-1">PDF, DOC, DOCX (Max 10MB)</p>
                 </div>
               )}
             </label>
@@ -230,56 +229,56 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
           <div className="space-y-6 animate-fadeIn">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="name" className="block text-gray-700 mb-2">Full Name *</label>
+                <label htmlFor="name" className="block text-foreground mb-2 font-medium text-sm">Full Name *</label>
                 <input
                   id="name"
                   type="text"
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-border outline-none text-foreground"
                 />
               </div>
               <div>
-                <label htmlFor="email" className="block text-gray-700 mb-2">Email *</label>
+                <label htmlFor="email" className="block text-foreground mb-2 font-medium text-sm">Email *</label>
                 <input
                   id="email"
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-border outline-none text-foreground"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="phone" className="block text-gray-700 mb-2">Phone</label>
+                <label htmlFor="phone" className="block text-foreground mb-2 font-medium text-sm">Phone</label>
                 <input
                   id="phone"
                   type="tel"
                   name="phone"
                   value={formData.phone}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-border outline-none text-foreground"
                 />
               </div>
               <div>
-                <label htmlFor="location" className="block text-gray-700 mb-2">Location</label>
+                <label htmlFor="location" className="block text-foreground mb-2 font-medium text-sm">Location</label>
                 <input
                   id="location"
                   type="text"
                   name="location"
                   value={formData.location}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-border outline-none text-foreground"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-gray-700 mb-2">Skills</label>
+              <label className="block text-foreground mb-2 font-medium text-sm">Skills</label>
               <div className="flex gap-2 mb-3">
                 <input
                   type="text"
@@ -288,11 +287,11 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addSkill())}
                   placeholder="Add a skill"
                   aria-label="Add a skill"
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  className="flex-1 px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-border outline-none text-foreground"
                 />
                 <button
                   onClick={addSkill}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
                 >
                   Add
                 </button>
@@ -301,12 +300,12 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
                 {formData.skills.map((skill) => (
                   <span
                     key={skill}
-                    className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm flex items-center gap-2"
+                    className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm flex items-center gap-2"
                   >
                     {skill}
                     <button
                       onClick={() => removeSkill(skill)}
-                      className="hover:text-blue-900"
+                      className="hover:text-primary/70"
                     >
                       ×
                     </button>
@@ -316,19 +315,19 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
             </div>
 
             <div>
-              <label className="block text-gray-700 mb-2">Profile Summary</label>
+              <label className="block text-foreground mb-2 font-medium text-sm">Profile Summary</label>
               <textarea
                 name="profile_summary"
                 value={formData.profile_summary}
                 onChange={handleInputChange}
                 rows={4}
                 placeholder="Brief summary of your professional background"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none"
+                className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-border outline-none resize-none text-foreground"
               />
             </div>
 
             <div>
-              <label className="block text-gray-700 mb-2">Experience</label>
+              <label className="block text-foreground mb-2 font-medium text-sm">Experience</label>
               <div className="flex gap-2 mb-3">
                 <input
                   type="text"
@@ -337,11 +336,11 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addExperience())}
                   placeholder="Add experience"
                   aria-label="Add experience"
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  className="flex-1 px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-border outline-none text-foreground"
                 />
                 <button
                   onClick={addExperience}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
                 >
                   Add
                 </button>
@@ -350,12 +349,12 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
                 {formData.experience.map((experience) => (
                   <span
                     key={experience}
-                    className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm flex items-center gap-2"
+                    className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm flex items-center gap-2"
                   >
                     {experience}
                     <button
                       onClick={() => removeExperience(experience)}
-                      className="hover:text-blue-900"
+                      className="hover:text-primary/70"
                     >
                       ×
                     </button>
@@ -365,7 +364,7 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
             </div>
 
             <div>
-              <label className="block text-gray-700 mb-2">Education</label>
+              <label className="block text-foreground mb-2 font-medium text-sm">Education</label>
               <div className="flex gap-2 mb-3">
                 <input
                   type="text"
@@ -374,11 +373,11 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addEducation())}
                   placeholder="Add education"
                   aria-label="Add education"
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  className="flex-1 px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-border outline-none text-foreground"
                 />
                 <button
                   onClick={addEducation}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
                 >
                   Add
                 </button>
@@ -387,12 +386,12 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
                 {formData.education.map((education) => (
                   <span
                     key={education}
-                    className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm flex items-center gap-2"
+                    className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm flex items-center gap-2"
                   >
                     {education}
                     <button
                       onClick={() => removeEducation(education)}
-                      className="hover:text-blue-900"
+                      className="hover:text-primary/70"
                     >
                       ×
                     </button>
@@ -402,7 +401,7 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
             </div>
 
             <div>
-              <label className="block text-gray-700 mb-2">Certifications and Achievements and Awards</label>
+              <label className="block text-foreground mb-2 font-medium text-sm">Certifications and Achievements and Awards</label>
               <div className="flex gap-2 mb-3">
                 <input
                   type="text"
@@ -411,11 +410,11 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addCertification())}
                   placeholder="Add certification"
                   aria-label="Add certification"
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  className="flex-1 px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-border outline-none text-foreground"
                 />
                 <button
                   onClick={addCertification}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
                 >
                   Add
                 </button>
@@ -424,12 +423,12 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
                 {formData.certificationsAndAchievementsAndAwards.map((certification) => (
                   <span
                     key={certification}
-                    className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm flex items-center gap-2"
+                    className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm flex items-center gap-2"
                   >
                     {certification}
                     <button
                       onClick={() => removeCertification(certification)}
-                      className="hover:text-blue-900"
+                      className="hover:text-primary/70"
                     >
                       ×
                     </button>
@@ -439,7 +438,7 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
             </div>
 
             <div>
-              <label className="block text-gray-700 mb-2">Projects</label>
+              <label className="block text-foreground mb-2 font-medium text-sm">Projects</label>
               <div className="flex gap-2 mb-3">
                 <input
                   type="text"
@@ -448,11 +447,11 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addProject())}
                   placeholder="Add project"
                   aria-label="Add project"
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  className="flex-1 px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-border outline-none text-foreground"
                 />
                 <button
                   onClick={addProject}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
                 >
                   Add
                 </button>
@@ -461,12 +460,12 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
                 {formData.projects.map((project) => (
                   <span
                     key={project}
-                    className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm flex items-center gap-2"
+                    className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm flex items-center gap-2"
                   >
                     {project}
                     <button
                       onClick={() => removeProject(project)}
-                      className="hover:text-blue-900"
+                      className="hover:text-primary/70"
                     >
                       ×
                     </button>
@@ -476,21 +475,21 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
             </div>
 
             <div>
-              <label htmlFor="about" className="block text-gray-700 mb-2">About</label>
+              <label htmlFor="about" className="block text-foreground mb-2 font-medium text-sm">About</label>
               <textarea
                 id="about"
                 name="about"
                 value={formData.about}
                 onChange={handleInputChange}
                 rows={3}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none"
+                className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-border outline-none resize-none text-foreground"
               />
             </div>
 
             <button
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              className="w-full py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center font-medium"
             >
               {isSubmitting ? (
                 <>
