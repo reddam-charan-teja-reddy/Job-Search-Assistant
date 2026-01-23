@@ -513,7 +513,7 @@ Example format: "This interview will assess your [specific skills] abilities, fo
 We'll explore your experience with [technologies/methodologies] and evaluate your [soft skills]."
 """
         
-        model = genai.GenerativeModel("gemini-2.5-flash-lite")
+        model = genai.GenerativeModel("gemini-1.5-flash")
         response = model.generate_content(prompt)
         
         objective = response.text.strip()

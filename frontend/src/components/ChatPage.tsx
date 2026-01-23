@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Send, Home, Sparkles, Loader2, ArrowLeft, Bot, User, Briefcase, X } from 'lucide-react';
+import { Send, Home, Sparkles, Loader2, X, ArrowLeft, Bot, User, Briefcase, X } from 'lucide-react';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import { Job, Chat, Message } from '../App';
@@ -71,6 +71,7 @@ export default function ChatPage({
   const [isSending, setIsSending] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [selectedJobData, setSelectedJobData] = useState<JobCardData | null>(null);
+  const [activeJobInContext, setActiveJobInContext] = useState<JobCardData | null>(null); // Persisted job in chat context
   const [actualChatId, setActualChatId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const jobsContainerRef = useRef<HTMLDivElement>(null);
@@ -205,6 +206,14 @@ export default function ChatPage({
     const finalJobId = jobId || selectedJobId || undefined;
     const finalJobData = jobData || selectedJobData || undefined;
 
+    // Check if user wants to clear the job context
+    const clearJobKeywords = ['clear job', 'remove job', 'forget job', 'different job', 'change job', 'new search', 'clear selection', 'start fresh'];
+    const shouldClearJob = clearJobKeywords.some(keyword => messageText.toLowerCase().includes(keyword));
+
+    if (shouldClearJob) {
+      setActiveJobInContext(null);
+    }
+
     setIsSending(true);
     setMessage('');
 
@@ -256,6 +265,12 @@ export default function ChatPage({
         toast.success(`Found ${response.jobs.length} jobs`);
       }
 
+      // Update active job in context if a new job was selected
+      if (finalJobData && !shouldClearJob) {
+        setActiveJobInContext(finalJobData);
+      }
+
+      // Clear the one-time selection state (active job persists separately)
       setSelectedJobId(null);
       setSelectedJobData(null);
     } catch (error) {
@@ -398,66 +413,94 @@ export default function ChatPage({
               </div>
             )}
 
-            <div className='relative flex items-center gap-2 max-w-3xl mx-auto'>
-              <input
-                type='text'
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && !isSending && handleSendMessage()}
-                placeholder='Ask about jobs, skills, or interview tips...'
-                disabled={isSending}
-                className='w-full bg-card border border-border rounded-full pl-5 pr-12 py-3.5 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary disabled:opacity-50 transition-all shadow-sm'
-              />
-              <button
-                onClick={() => handleSendMessage()}
-                disabled={isSending || !message.trim()}
-                className='absolute right-2 p-2 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 disabled:opacity-0 disabled:scale-75 transition-all shadow-md'>
-                <Send className='w-4 h-4' />
-              </button>
-            </div>
-            <p className="text-center text-[10px] text-muted-foreground/40 mt-2">
-              AI can make mistakes. Verify important info.
-            </p>
-          </div>
-        </div>
+            {/* Active Job in Context Indicator */}
+            {activeJobInContext && (
+              <div className='px-4 pb-2'>
+                <div className='flex items-center justify-between text-sm bg-blue-50 px-3 py-2 rounded-lg border border-blue-200'>
+                  <div className='flex items-center gap-2 text-blue-700'>
+                    <span className='font-medium'>📌 Active Job:</span>
+                    <span className='truncate max-w-[200px]'>
+                      {activeJobInContext.job_title} at {activeJobInContext.employer_name}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setActiveJobInContext(null);
+                      handleSendMessage('clear job selection');
+                    }}
+                    className='text-blue-400 hover:text-blue-600 ml-2 flex-shrink-0'
+                    title='Clear job from context'>
+                    <X className='w-4 h-4' />
+                  </button>
+                </div>
+                <p className='text-xs text-gray-500 mt-1 px-1'>
+                  All questions will be about this job. Say "clear job" or click × to remove.
+                </p>
+              </div>
+            )}
 
-        {/* Jobs Sidebar */}
-        {showJobs && displayedJobs.length > 0 && (
-          <div className="flex-1 bg-background flex flex-col min-w-0 animate-fadeIn">
-            <div className="p-4 border-b border-border/40 flex items-center justify-between">
-              <h3 className="font-semibold flex items-center gap-2">
-                <Briefcase className="w-4 h-4 text-primary" />
-                Recommended Jobs <span className="text-muted-foreground text-xs font-normal">({displayedJobs.length})</span>
-              </h3>
-              <button
-                onClick={() => setShowJobs(false)}
-                className="text-xs text-muted-foreground hover:text-foreground underline">
-                Hide
-              </button>
-            </div>
-
-            <div ref={jobsContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4">
-              {displayedJobs.map((job) => (
-                <JobCard
-                  key={job.id}
-                  job={job}
-                  onSave={saveJob}
-                  onUnsave={unsaveJob}
-                  onApply={applyToJob}
-                  onChoose={handleChooseJob}
-                  isSaved={savedJobs.some((j) => j.id === job.id)}
-                  isApplied={appliedJobs.some((j) => j.id === job.id)}
+            {/* Message Input */}
+            <div className='p-4 border-t border-gray-200'>
+              <div className='flex gap-2'>
+                <input
+                  type='text'
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && !isSending && handleSendMessage()}
+                  placeholder='Ask about jobs, skills, or interview tips...'
+                  disabled={isSending}
+                  className='w-full bg-card border border-border rounded-full pl-5 pr-12 py-3.5 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary disabled:opacity-50 transition-all shadow-sm'
                 />
-              ))}
+                <button
+                  onClick={() => handleSendMessage()}
+                  disabled={isSending || !message.trim()}
+                  className='absolute right-2 p-2 bg-primary text-primary-foreground rounded-full hover:bg-primary/90 disabled:opacity-0 disabled:scale-75 transition-all shadow-md'>
+                  <Send className='w-4 h-4' />
+                </button>
+              </div>
+              <p className="text-center text-[10px] text-muted-foreground/40 mt-2">
+                AI can make mistakes. Verify important info.
+              </p>
+            </div>
+          </div>
 
-              <div className="p-8 text-center text-muted-foreground text-sm">
-                <p>End of recommendations</p>
-                <p className="text-xs mt-1">Refine your search for more results</p>
+          {/* Jobs Sidebar */}
+          {showJobs && displayedJobs.length > 0 && (
+            <div className="flex-1 bg-background flex flex-col min-w-0 animate-fadeIn">
+              <div className="p-4 border-b border-border/40 flex items-center justify-between">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Briefcase className="w-4 h-4 text-primary" />
+                  Recommended Jobs <span className="text-muted-foreground text-xs font-normal">({displayedJobs.length})</span>
+                </h3>
+                <button
+                  onClick={() => setShowJobs(false)}
+                  className="text-xs text-muted-foreground hover:text-foreground underline">
+                  Hide
+                </button>
+              </div>
+
+              <div ref={jobsContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4">
+                {displayedJobs.map((job) => (
+                  <JobCard
+                    key={job.id}
+                    job={job}
+                    onSave={saveJob}
+                    onUnsave={unsaveJob}
+                    onApply={applyToJob}
+                    onChoose={handleChooseJob}
+                    isSaved={savedJobs.some((j) => j.id === job.id)}
+                    isApplied={appliedJobs.some((j) => j.id === job.id)}
+                  />
+                ))}
+
+                <div className="p-8 text-center text-muted-foreground text-sm">
+                  <p>End of recommendations</p>
+                  <p className="text-xs mt-1">Refine your search for more results</p>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-    </div>
-  );
+      );
 }

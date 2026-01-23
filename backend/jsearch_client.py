@@ -55,7 +55,17 @@ async def search_jobs(
     Returns:
         dict containing job search results
     """
+    print(f"\n[JSEARCH] ========== JOB SEARCH REQUEST ==========")
+    print(f"[JSEARCH] Query: '{query}'")
+    print(f"[JSEARCH] Country: {country}, Page: {page}, Num Pages: {num_pages}")
+    print(f"[JSEARCH] Date Posted: {date_posted}, Remote Only: {work_from_home}")
+    if employment_types:
+        print(f"[JSEARCH] Employment Types: {employment_types}")
+    if job_requirements:
+        print(f"[JSEARCH] Job Requirements: {job_requirements}")
+    
     if not RAPIDAPI_KEY:
+        print(f"[JSEARCH] ERROR: RAPIDAPI_KEY not found in environment variables")
         logger.error("RAPIDAPI_KEY not found in environment variables")
         return {"status": "error", "message": "API key not configured", "data": []}
     
@@ -80,19 +90,39 @@ async def search_jobs(
     if exclude_job_publishers:
         params["exclude_job_publishers"] = exclude_job_publishers
     
+    print(f"[JSEARCH] Request URL: {url}")
+    print(f"[JSEARCH] Request Params: {params}")
+    
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url, headers=get_headers(), params=params) as response:
+                print(f"[JSEARCH] Response Status: {response.status}")
+                
                 if response.status == 200:
                     data = await response.json()
-                    logger.info(f"Job search successful: found {len(data.get('data', []))} jobs")
+                    job_count = len(data.get('data', []))
+                    print(f"[JSEARCH] SUCCESS: Found {job_count} jobs")
+                    
+                    # Log first few job titles for debugging
+                    if job_count > 0:
+                        print(f"[JSEARCH] Sample jobs:")
+                        for i, job in enumerate(data.get('data', [])[:3]):
+                            print(f"[JSEARCH]   {i+1}. {job.get('job_title', 'N/A')} at {job.get('employer_name', 'N/A')}")
+                    
+                    logger.info(f"Job search successful: found {job_count} jobs")
+                    print(f"[JSEARCH] =========================================\n")
                     return data
                 else:
                     error_text = await response.text()
+                    print(f"[JSEARCH] ERROR: API returned status {response.status}")
+                    print(f"[JSEARCH] Error Response: {error_text[:500]}")
                     logger.error(f"Job search failed: {response.status} - {error_text}")
+                    print(f"[JSEARCH] =========================================\n")
                     return {"status": "error", "message": f"API error: {response.status}", "data": []}
     except Exception as e:
+        print(f"[JSEARCH] EXCEPTION: {str(e)}")
         logger.error(f"Job search exception: {str(e)}")
+        print(f"[JSEARCH] =========================================\n")
         return {"status": "error", "message": str(e), "data": []}
 
 
@@ -110,7 +140,12 @@ async def get_job_details(
     Returns:
         dict containing job details
     """
+    print(f"\n[JSEARCH] ========== JOB DETAILS REQUEST ==========")
+    print(f"[JSEARCH] Job ID: {job_id}")
+    print(f"[JSEARCH] Country: {country}")
+    
     if not RAPIDAPI_KEY:
+        print(f"[JSEARCH] ERROR: RAPIDAPI_KEY not found in environment variables")
         logger.error("RAPIDAPI_KEY not found in environment variables")
         return {"status": "error", "message": "API key not configured", "data": []}
     
@@ -121,19 +156,41 @@ async def get_job_details(
         "country": country
     }
     
+    print(f"[JSEARCH] Request URL: {url}")
+    
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url, headers=get_headers(), params=params) as response:
+                print(f"[JSEARCH] Response Status: {response.status}")
+                
                 if response.status == 200:
                     data = await response.json()
+                    jobs = data.get('data', [])
+                    
+                    if jobs:
+                        job = jobs[0]
+                        print(f"[JSEARCH] SUCCESS: Found job details")
+                        print(f"[JSEARCH]   Title: {job.get('job_title', 'N/A')}")
+                        print(f"[JSEARCH]   Company: {job.get('employer_name', 'N/A')}")
+                        print(f"[JSEARCH]   Location: {job.get('job_location', 'N/A')}")
+                        print(f"[JSEARCH]   Description length: {len(job.get('job_description', ''))} chars")
+                    else:
+                        print(f"[JSEARCH] WARNING: No job data returned for ID: {job_id}")
+                    
                     logger.info(f"Job details fetch successful for job_id: {job_id}")
+                    print(f"[JSEARCH] ============================================\n")
                     return data
                 else:
                     error_text = await response.text()
+                    print(f"[JSEARCH] ERROR: API returned status {response.status}")
+                    print(f"[JSEARCH] Error Response: {error_text[:500]}")
                     logger.error(f"Job details fetch failed: {response.status} - {error_text}")
+                    print(f"[JSEARCH] ============================================\n")
                     return {"status": "error", "message": f"API error: {response.status}", "data": []}
     except Exception as e:
+        print(f"[JSEARCH] EXCEPTION: {str(e)}")
         logger.error(f"Job details exception: {str(e)}")
+        print(f"[JSEARCH] ============================================\n")
         return {"status": "error", "message": str(e), "data": []}
 
 
