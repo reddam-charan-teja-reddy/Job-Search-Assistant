@@ -22,37 +22,51 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 genai.configure(api_key=GEMINI_API_KEY)
 
 # System prompt for the career assistant chatbot
-SYSTEM_PROMPT = """You are JobBot AI, a friendly and professional career assistant. Your role is to:
+SYSTEM_PROMPT = """You are JobBot AI, a highly skilled and professional career assistant powered by advanced AI.
 
-1. Help users find relevant jobs based on their profile, skills, and preferences
-2. Provide resume correction tips and suggestions
-3. Offer interview preparation tips and guidance
-4. Help users answer application questions for specific jobs
-5. Give career and job-related advice across any domain
-6. Suggest AI Mock Interviews for saved or applied jobs
+## YOUR CAPABILITIES:
+1. **Job Search** - Find relevant jobs matching user's profile, skills, and preferences
+2. **Resume Analysis** - Provide detailed resume improvement tips and ATS optimization
+3. **Interview Prep** - Offer comprehensive interview preparation with common questions and strategies
+4. **Application Help** - Help craft responses to application questions for specific jobs
+5. **Career Advice** - Provide industry-specific career guidance and growth strategies
+6. **Mock Interviews** - Suggest AI Mock Interview practice for better preparation
 
-RESPONSE STYLE - VERY IMPORTANT:
-- Keep responses SHORT and CONCISE - aim for 2-4 sentences maximum for most responses
-- Use bullet points for lists instead of long paragraphs
-- Be direct and actionable - get to the point quickly
-- Avoid repetitive or verbose explanations
-- Only provide detailed responses when specifically asked for in-depth information
-- When showing job results, briefly summarize what you found - the job cards will show the details
+## RESPONSE FORMATTING - CRITICAL:
+- **Always use Markdown** for formatting your responses
+- Use **bold** for important terms and emphasis
+- Use bullet points (•) or numbered lists for multiple items
+- Use headers (##, ###) to organize longer responses
+- Use `code formatting` for technical terms when relevant
+- Keep responses **concise but informative** - 2-5 sentences for simple queries
+- For complex topics, use structured sections with headers
 
-Guidelines:
-- Be conversational, helpful, and encouraging
-- Use the user's profile context to provide personalized recommendations
-- When searching for jobs, keep the query SIMPLE - don't over-filter
-- When a job is selected, provide brief insights about the role
-- Offer actionable advice in concise bullet points
-- Be supportive but honest
-- When a user saves or applies to a job, proactively suggest: "Would you like to practice for this interview? You can try our AI Mock Interview feature for realistic voice-based interview simulation!"
+## PERSONALIZATION - VERY IMPORTANT:
+- **Always reference the user's actual skills and experience** from their profile when giving advice
+- Match job recommendations to their specific background
+- Tailor interview tips based on their experience level
+- When analyzing job fit, compare against their actual qualifications
 
-You have access to the following tools:
-- search_jobs: Search for job listings based on various criteria
-- get_job_details: Get detailed information about a specific job
+## JOB SEARCH BEHAVIOR:
+- **Default country is INDIA (in)** - always use country='in' unless user specifies otherwise
+- Keep search queries SIMPLE - just the role/title
+- Don't over-filter - use minimal parameters for more results
+- When jobs are found, give a brief personalized analysis of fit based on user's profile
 
-When users ask about jobs, search with BROAD queries to find more results. Avoid using too many filters.
+## WHEN A JOB IS SELECTED:
+- Analyze how well it matches the user's skills
+- Point out relevant experience they have
+- Identify any skill gaps and how to address them
+- Suggest preparation strategies specific to that role
+
+## PROACTIVE SUGGESTIONS:
+- After job discussions, suggest: "Would you like to practice for this interview? Try our **AI Mock Interview** feature for realistic voice-based interview simulation!"
+- Offer to help with resume tailoring for specific roles
+- Suggest relevant skills to highlight
+
+You have access to:
+- `search_jobs`: Search job listings (default to India)
+- `get_job_details`: Get detailed job information
 """
 
 # Define function declarations for Gemini using proper protobuf types
@@ -60,25 +74,25 @@ def get_search_jobs_function():
     """Create the search_jobs function declaration using protos."""
     return protos.FunctionDeclaration(
         name="search_jobs",
-        description="Search for job listings. IMPORTANT: Keep queries SIMPLE to find more results. Use minimal filters - only add filters when the user EXPLICITLY asks for them. Start with just the job title/role, add location only if user specifies one.",
+        description="Search for job listings in India by default. Keep queries SIMPLE - just the job title/role. Only add filters when user EXPLICITLY requests them.",
         parameters=protos.Schema(
             type=protos.Type.OBJECT,
             properties={
                 "query": protos.Schema(
                     type=protos.Type.STRING,
-                    description="Keep it SIMPLE: just the job title or role. Examples: 'software developer', 'frontend developer', 'data scientist'. Only add location if user explicitly mentioned one."
+                    description="SIMPLE job title or role only. Examples: 'software developer', 'frontend developer', 'data scientist'. Do NOT add location to query - use country parameter instead."
                 ),
                 "country": protos.Schema(
                     type=protos.Type.STRING,
-                    description="ISO-3166-1 alpha-2 country code (e.g., 'us', 'uk'). Only use if user specifies a country. Default is 'in'."
+                    description="ISO-3166-1 alpha-2 country code. ALWAYS DEFAULT TO 'in' (India) unless user explicitly asks for another country like US, UK, etc."
                 ),
                 "date_posted": protos.Schema(
                     type=protos.Type.STRING,
-                    description="ONLY use if user asks for recent jobs. Options: 'all', 'today', '3days', 'week', 'month'. Default is '3days'."
+                    description="Job posting age filter. Options: 'all', 'today', '3days', 'week', 'month'. Default is 'week' for fresh listings."
                 ),
                 "employment_types": protos.Schema(
                     type=protos.Type.STRING,
-                    description="ONLY use if user explicitly asks for specific employment type. Options: FULLTIME, CONTRACTOR, PARTTIME, INTERN"
+                    description="ONLY use if user explicitly asks. Options: FULLTIME, CONTRACTOR, PARTTIME, INTERN"
                 ),
                 "job_requirements": protos.Schema(
                     type=protos.Type.STRING,
@@ -86,11 +100,11 @@ def get_search_jobs_function():
                 ),
                 "work_from_home": protos.Schema(
                     type=protos.Type.BOOLEAN,
-                    description="ONLY set to true if user explicitly asks for remote/work-from-home jobs"
+                    description="Set to true ONLY if user explicitly asks for remote/WFH jobs"
                 ),
                 "num_pages": protos.Schema(
                     type=protos.Type.INTEGER,
-                    description="Number of pages (1-5). Default is 2 to get more results."
+                    description="Number of result pages (1-5). Default is 2."
                 )
             },
             required=["query"]
@@ -134,57 +148,77 @@ def get_chat_model():
     )
 
 
-async def create_permanent_context(user_data: dict) -> str:
+async def create_permanent_context(user_data: dict) -> dict:
     """
-    Create a minimized permanent context from user profile for the chat session.
-    This context will be used throughout the entire chat.
+    Create a permanent context from user profile for the chat session.
+    Keeps raw resume data (skills, experience, projects) for personalized responses.
     
     Args:
         user_data: User document from database
     
     Returns:
-        Minimized context string
+        Dictionary containing both raw profile data and AI-generated summary
     """
-    model = genai.GenerativeModel('gemini-2.5-flash-lite')
+    # Store raw resume data for direct reference
+    raw_profile = {
+        "name": user_data.get("name", ""),
+        "email": user_data.get("email", ""),
+        "location": user_data.get("location", "India"),
+        "skills": user_data.get("skills", []),
+        "experience": user_data.get("experience", []),
+        "education": user_data.get("education", []),
+        "projects": user_data.get("projects", []),
+        "certifications": user_data.get("certificationsAndAchievementsAndAwards", []),
+        "profile_summary": user_data.get("profile_summary", "")
+    }
     
-    # Build user profile summary
+    # Build formatted profile for AI
     profile_parts = []
-    if user_data.get("name"):
-        profile_parts.append(f"Name: {user_data['name']}")
-    if user_data.get("location"):
-        profile_parts.append(f"Location: {user_data['location']}")
-    if user_data.get("skills"):
-        profile_parts.append(f"Skills: {', '.join(user_data['skills'])}")
-    if user_data.get("experience"):
-        profile_parts.append(f"Experience: {'; '.join(user_data['experience'])}")
-    if user_data.get("education"):
-        profile_parts.append(f"Education: {'; '.join(user_data['education'])}")
-    if user_data.get("profile_summary"):
-        profile_parts.append(f"Profile Summary: {user_data['profile_summary']}")
-    if user_data.get("projects"):
-        profile_parts.append(f"Projects: {'; '.join(user_data['projects'][:3])}")  # Limit to 3
-    if user_data.get("certificationsAndAchievementsAndAwards"):
-        certs = user_data['certificationsAndAchievementsAndAwards'][:3]  # Limit to 3
-        profile_parts.append(f"Certifications/Awards: {'; '.join(certs)}")
+    if raw_profile["name"]:
+        profile_parts.append(f"**Name:** {raw_profile['name']}")
+    if raw_profile["location"]:
+        profile_parts.append(f"**Location:** {raw_profile['location']}")
+    if raw_profile["skills"]:
+        profile_parts.append(f"**Technical Skills:** {', '.join(raw_profile['skills'])}")
+    if raw_profile["experience"]:
+        exp_list = "\n".join(f"  • {exp}" for exp in raw_profile['experience'])
+        profile_parts.append(f"**Work Experience:**\n{exp_list}")
+    if raw_profile["education"]:
+        edu_list = "\n".join(f"  • {edu}" for edu in raw_profile['education'])
+        profile_parts.append(f"**Education:**\n{edu_list}")
+    if raw_profile["projects"]:
+        proj_list = "\n".join(f"  • {proj}" for proj in raw_profile['projects'][:5])
+        profile_parts.append(f"**Projects:**\n{proj_list}")
+    if raw_profile["certifications"]:
+        cert_list = "\n".join(f"  • {cert}" for cert in raw_profile['certifications'][:5])
+        profile_parts.append(f"**Certifications & Awards:**\n{cert_list}")
+    if raw_profile["profile_summary"]:
+        profile_parts.append(f"**Profile Summary:** {raw_profile['profile_summary']}")
     
-    full_profile = "\n".join(profile_parts)
+    formatted_profile = "\n\n".join(profile_parts)
     
-    prompt = f"""Create a concise career profile summary from the following user information. 
-Focus on key skills, experience level, and what kind of jobs would suit them. 
-This will be used as context for a job search chatbot.
+    # Generate AI summary for quick reference
+    model = genai.GenerativeModel('gemini-2.5-flash-lite')
+    prompt = f"""Analyze this candidate's profile and create a concise 2-3 sentence professional summary.
+Focus on: experience level, key technical strengths, and ideal job types.
 
-User Profile:
-{full_profile}
+{formatted_profile}
 
-Create a professional summary that captures the essence of this candidate's profile for job matching purposes."""
-
+Professional Summary:"""
+    
     try:
         response = model.generate_content(prompt)
-        return response.text.strip()
+        ai_summary = response.text.strip()
     except Exception as e:
-        logger.error(f"Error creating permanent context: {str(e)}")
-        # Fallback to simple summary
-        return f"User: {user_data.get('name', 'Unknown')}. Skills: {', '.join(user_data.get('skills', [])[:10])}. Location: {user_data.get('location', 'Not specified')}."
+        logger.error(f"Error creating AI summary: {str(e)}")
+        skills_str = ', '.join(raw_profile['skills'][:5]) if raw_profile['skills'] else 'various technologies'
+        ai_summary = f"Candidate with skills in {skills_str} based in {raw_profile['location']}."
+    
+    return {
+        "raw_profile": raw_profile,
+        "formatted_profile": formatted_profile,
+        "ai_summary": ai_summary
+    }
 
 
 async def summarize_conversation(messages: List[dict]) -> str:
@@ -237,16 +271,84 @@ def build_context_prompt(chat_context: dict, current_message: str, selected_job_
     Args:
         chat_context: Chat context dictionary
         current_message: Current user message
-        selected_job_id: Optional job ID if user selected a job
+        selected_job_id: Optional job ID if user selected a job (for new selection)
     
     Returns:
         Complete context prompt
     """
     parts = []
     
-    # Add permanent context (user profile)
-    if chat_context.get("permanent_context"):
-        parts.append(f"[USER PROFILE]\n{chat_context['permanent_context']}\n")
+    # Add permanent context (user profile) - now supports both old string format and new dict format
+    permanent_context = chat_context.get("permanent_context")
+    if permanent_context:
+        if isinstance(permanent_context, dict):
+            # New format with raw profile data
+            raw_profile = permanent_context.get("raw_profile", {})
+            ai_summary = permanent_context.get("ai_summary", "")
+            
+            # Build comprehensive profile section
+            profile_section = "[USER PROFILE - ALWAYS REFERENCE THIS FOR PERSONALIZED ADVICE]\n"
+            profile_section += f"**Summary:** {ai_summary}\n\n"
+            
+            if raw_profile.get("name"):
+                profile_section += f"**Name:** {raw_profile['name']}\n"
+            if raw_profile.get("location"):
+                profile_section += f"**Location:** {raw_profile['location']}\n"
+            
+            if raw_profile.get("skills"):
+                profile_section += f"\n**Technical Skills:** {', '.join(raw_profile['skills'])}\n"
+            
+            if raw_profile.get("experience"):
+                profile_section += f"\n**Work Experience:**\n"
+                for exp in raw_profile['experience'][:5]:
+                    profile_section += f"  • {exp}\n"
+            
+            if raw_profile.get("projects"):
+                profile_section += f"\n**Projects:**\n"
+                for proj in raw_profile['projects'][:5]:
+                    profile_section += f"  • {proj}\n"
+            
+            if raw_profile.get("education"):
+                profile_section += f"\n**Education:**\n"
+                for edu in raw_profile['education'][:3]:
+                    profile_section += f"  • {edu}\n"
+            
+            if raw_profile.get("certifications"):
+                profile_section += f"\n**Certifications:**\n"
+                for cert in raw_profile['certifications'][:3]:
+                    profile_section += f"  • {cert}\n"
+            
+            parts.append(profile_section)
+        else:
+            # Old string format - backwards compatibility
+            parts.append(f"[USER PROFILE]\n{permanent_context}\n")
+    
+    # Add PERSISTED selected job context if applicable
+    selected_job = chat_context.get("selected_job")
+    if selected_job:
+        job_title = selected_job.get('job_title', 'Unknown Position')
+        employer_name = selected_job.get('employer_name', 'Unknown Company')
+        job_description = selected_job.get('job_description', '')
+        job_location = selected_job.get('job_location', 'Not specified')
+        job_employment_type = selected_job.get('job_employment_type', '')
+        job_highlights = selected_job.get('job_highlights', {})
+        
+        job_context = f"""[CURRENTLY SELECTED JOB - Answer all questions in context of this job]
+**Position:** {job_title}
+**Company:** {employer_name}
+**Location:** {job_location}
+**Type:** {job_employment_type}
+
+**Job Description:**
+{job_description[:2000] if job_description else 'No description available'}
+"""
+        if job_highlights:
+            if job_highlights.get('Qualifications'):
+                job_context += f"\n**Required Qualifications:**\n" + "\n".join(f"  • {q}" for q in job_highlights['Qualifications'][:5])
+            if job_highlights.get('Responsibilities'):
+                job_context += f"\n**Key Responsibilities:**\n" + "\n".join(f"  • {r}" for r in job_highlights['Responsibilities'][:5])
+        
+        parts.append(job_context + "\n")
     
     # Add conversation summary
     if chat_context.get("conversation_summary"):
@@ -258,10 +360,6 @@ def build_context_prompt(chat_context: dict, current_message: str, selected_job_
         for msg in chat_context["recent_messages"][-10:]:  # Last 10 messages (5 exchanges)
             parts.append(f"{msg['sender'].upper()}: {msg['message']}")
         parts.append("")
-    
-    # Add selected job context if applicable
-    if selected_job_id:
-        parts.append(f"[CONTEXT: User has selected job with ID: {selected_job_id}. Provide insights about this specific job.]\n")
     
     # Add current message
     parts.append(f"[CURRENT MESSAGE]\nUSER: {current_message}")
@@ -283,15 +381,17 @@ async def execute_function_call(function_name: str, function_args: dict) -> Tupl
     job_cards = None
     
     if function_name == "search_jobs":
+        # Default to India (in) for job searches
         result = await search_jobs(
             query=function_args.get("query", ""),
-            num_pages=min(function_args.get("num_pages", 1), 3),  # Limit to 3 pages
-            country=function_args.get("country", "us"),
-            date_posted=function_args.get("date_posted", "all"),
+            num_pages=min(function_args.get("num_pages", 2), 3),  # Default 2 pages, max 3
+            country=function_args.get("country", "in"),  # Default to India
+            date_posted=function_args.get("date_posted", "week"),  # Default to last week
             employment_types=function_args.get("employment_types"),
             job_requirements=function_args.get("job_requirements"),
             work_from_home=function_args.get("work_from_home", False)
         )
+        print(f"[CHAT_SERVICE] Job search executed - Country: {function_args.get('country', 'in')}, Query: {function_args.get('query')}")
         
         # Extract job cards for frontend
         job_cards = extract_job_cards_from_response(result)
@@ -323,7 +423,7 @@ async def execute_function_call(function_name: str, function_args: dict) -> Tupl
     elif function_name == "get_job_details":
         result = await get_job_details(
             job_id=function_args.get("job_id", ""),
-            country=function_args.get("country", "us")
+            country=function_args.get("country", "in")  # Default to India
         )
         
         jobs_data = result.get("data", [])
@@ -400,51 +500,33 @@ async def process_chat_message(
     chat_context = chat.get("context", {
         "permanent_context": "",
         "conversation_summary": "",
-        "recent_messages": []
+        "recent_messages": [],
+        "selected_job": None
     })
     
-    # Build the prompt with context
+    # Check if user wants to clear the selected job
+    clear_job_keywords = ["clear job", "remove job", "forget job", "different job", "change job", "new search", "clear selection", "start fresh"]
+    user_message_lower = user_message.lower()
+    if any(keyword in user_message_lower for keyword in clear_job_keywords):
+        chat_context["selected_job"] = None
+        print(f"[CHAT_SERVICE] Cleared selected job from context")
+    
+    # If new job data is provided, update the persisted selected job
+    if selected_job_data:
+        chat_context["selected_job"] = selected_job_data
+        print(f"[CHAT_SERVICE] Stored new job in context: {selected_job_data.get('job_title')} at {selected_job_data.get('employer_name')}")
+    
+    # Build the prompt with context (includes persisted selected_job)
     context_prompt = build_context_prompt(chat_context, user_message, selected_job_id)
     
-    # Use provided job data or fetch if only ID is provided
-    selected_job_details = None
-    if selected_job_data:
-        # Use the job data passed directly from frontend (preferred - avoids API call)
-        selected_job_details = selected_job_data
-        job_title = selected_job_data.get('job_title', 'Unknown Position')
-        employer_name = selected_job_data.get('employer_name', 'Unknown Company')
-        job_description = selected_job_data.get('job_description', '')
-        job_location = selected_job_data.get('job_location', 'Not specified')
-        job_employment_type = selected_job_data.get('job_employment_type', '')
-        job_highlights = selected_job_data.get('job_highlights', {})
-        
-        # Build detailed job context for the AI
-        job_context = f"""
-[SELECTED JOB - User wants to discuss this specific position]
-Job Title: {job_title}
-Company: {employer_name}
-Location: {job_location}
-Employment Type: {job_employment_type}
-
-Job Description:
-{job_description[:2000] if job_description else 'No description available'}
-"""
-        if job_highlights:
-            if job_highlights.get('Qualifications'):
-                job_context += f"\nQualifications:\n" + "\n".join(f"- {q}" for q in job_highlights['Qualifications'][:5])
-            if job_highlights.get('Responsibilities'):
-                job_context += f"\nResponsibilities:\n" + "\n".join(f"- {r}" for r in job_highlights['Responsibilities'][:5])
-        
-        context_prompt += f"\n\n{job_context}"
-        print(f"[CHAT_SERVICE] Using provided job data for: {job_title} at {employer_name}")
-    elif selected_job_id:
-        # Fallback: try to fetch job details if only ID is provided
-        job_result = await get_job_details(selected_job_id)
-        if job_result.get("data"):
-            selected_job_details = extract_job_card_data(job_result["data"][0])
-            context_prompt += f"\n\n[Selected Job Details: {selected_job_details.get('job_title')} at {selected_job_details.get('employer_name')}]"
-        else:
-            print(f"[CHAT_SERVICE] Warning: Could not fetch job details for ID: {selected_job_id}")
+    # Return the currently selected job (either new or persisted)
+    selected_job_details = selected_job_data or chat_context.get("selected_job")
+    
+    # Log current job context
+    if selected_job_details:
+        print(f"[CHAT_SERVICE] Job in context: {selected_job_details.get('job_title')} at {selected_job_details.get('employer_name')}")
+    else:
+        print(f"[CHAT_SERVICE] No job currently selected")
     
     # Create chat model with function calling
     model = get_chat_model()
@@ -644,17 +726,32 @@ async def create_new_chat(email: str) -> dict:
     # Generate chat ID
     chat_id = ObjectId()
     
-    # Initial bot message
+    # Initial bot message with markdown formatting
     user_name = user.get("name", "").split()[0] if user.get("name") else "there"
-    initial_message = f"""Hello {user_name}! 👋 I'm JobBot AI, your personal career assistant.
+    
+    # Get skills for personalized greeting
+    skills = user.get("skills", [])
+    skills_mention = ""
+    if skills:
+        top_skills = skills[:3]
+        skills_mention = f"\n\nI see you have experience with **{', '.join(top_skills)}** - great skills for today's job market! 🎯"
+    
+    initial_message = f"""## Hello {user_name}! 👋
 
-I've reviewed your profile and I'm ready to help you with:
-• Finding jobs that match your skills and experience
-• Resume tips and improvement suggestions
-• Interview preparation and guidance
-• Answering application questions
+I'm **JobBot AI**, your personal career assistant powered by advanced AI.
 
-What would you like to explore today?"""
+I've analyzed your profile and I'm ready to help you with:
+
+• 🔍 **Job Search** - Find roles matching your skills in India
+• 📝 **Resume Tips** - Optimize your resume for ATS systems
+• 🎤 **Interview Prep** - Practice with AI mock interviews
+• 💡 **Career Advice** - Get personalized guidance
+{skills_mention}
+
+**What would you like to explore today?** Try asking:
+- *"Find me frontend developer jobs"*
+- *"How can I improve my resume?"*
+- *"Help me prepare for interviews"*"""
     
     # Create chat object
     new_chat = {

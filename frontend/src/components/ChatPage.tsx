@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Send, Home, Sparkles, Loader2 } from 'lucide-react';
+import { Send, Home, Sparkles, Loader2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import { Job, Chat, Message } from '../App';
@@ -72,6 +72,7 @@ export default function ChatPage({
   const [isSending, setIsSending] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [selectedJobData, setSelectedJobData] = useState<JobCardData | null>(null);
+  const [activeJobInContext, setActiveJobInContext] = useState<JobCardData | null>(null); // Persisted job in chat context
   const [actualChatId, setActualChatId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const jobsContainerRef = useRef<HTMLDivElement>(null);
@@ -219,6 +220,14 @@ export default function ChatPage({
     const finalJobId = jobId || selectedJobId || undefined;
     const finalJobData = jobData || selectedJobData || undefined;
 
+    // Check if user wants to clear the job context
+    const clearJobKeywords = ['clear job', 'remove job', 'forget job', 'different job', 'change job', 'new search', 'clear selection', 'start fresh'];
+    const shouldClearJob = clearJobKeywords.some(keyword => messageText.toLowerCase().includes(keyword));
+    
+    if (shouldClearJob) {
+      setActiveJobInContext(null);
+    }
+
     setIsSending(true);
     setMessage('');
 
@@ -277,15 +286,12 @@ export default function ChatPage({
         toast.success(`Found ${response.jobs.length} matching jobs!`);
       }
 
-      // Handle selected job details if returned
-      if (response.selected_job_details) {
-        const selectedJob = convertJobCardDataToJob(
-          response.selected_job_details
-        );
-        console.log('Selected job details:', selectedJob);
+      // Update active job in context if a new job was selected
+      if (finalJobData && !shouldClearJob) {
+        setActiveJobInContext(finalJobData);
       }
 
-      // Clear selected job after sending
+      // Clear the one-time selection state (active job persists separately)
       setSelectedJobId(null);
       setSelectedJobData(null);
     } catch (error) {
@@ -431,17 +437,29 @@ export default function ChatPage({
             </div>
           )}
 
-          {/* Selected Job Indicator */}
-          {selectedJobId && (
+          {/* Active Job in Context Indicator */}
+          {activeJobInContext && (
             <div className='px-4 pb-2'>
-              <div className='flex items-center gap-2 text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded-lg'>
-                <span>Selected job for discussion</span>
+              <div className='flex items-center justify-between text-sm bg-blue-50 px-3 py-2 rounded-lg border border-blue-200'>
+                <div className='flex items-center gap-2 text-blue-700'>
+                  <span className='font-medium'>📌 Active Job:</span>
+                  <span className='truncate max-w-[200px]'>
+                    {activeJobInContext.job_title} at {activeJobInContext.employer_name}
+                  </span>
+                </div>
                 <button
-                  onClick={() => setSelectedJobId(null)}
-                  className='text-blue-400 hover:text-blue-600'>
-                  ✕
+                  onClick={() => {
+                    setActiveJobInContext(null);
+                    handleSendMessage('clear job selection');
+                  }}
+                  className='text-blue-400 hover:text-blue-600 ml-2 flex-shrink-0'
+                  title='Clear job from context'>
+                  <X className='w-4 h-4' />
                 </button>
               </div>
+              <p className='text-xs text-gray-500 mt-1 px-1'>
+                All questions will be about this job. Say "clear job" or click × to remove.
+              </p>
             </div>
           )}
 
