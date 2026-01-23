@@ -144,7 +144,7 @@ export default function HomePage({
                 </p>
               </div>
             </div>
-            <div className='space-y-3 max-h-64 overflow-y-auto'>
+            <div className='space-y-3 max-h-80 overflow-y-auto pr-2'>
               {savedJobs.length === 0 ? (
                 <p className='text-gray-400 text-center py-8'>
                   No saved jobs yet
@@ -177,7 +177,7 @@ export default function HomePage({
                 </p>
               </div>
             </div>
-            <div className='space-y-3 max-h-64 overflow-y-auto'>
+            <div className='space-y-3 max-h-80 overflow-y-auto pr-2'>
               {appliedJobs.length === 0 ? (
                 <p className='text-gray-400 text-center py-8'>
                   No applications yet
