@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -16,10 +16,14 @@ import {
   Plus,
   X,
   Save,
+  Upload,
+  Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { UserProfile } from '../App';
 import { ThemeToggle } from './ThemeToggle';
+import ChangePasswordModal from './ChangePasswordModal';
+import { uploadResume, updateUserProfile } from '../services/api';
 
 interface ProfilePageProps {
   userProfile: UserProfile;
@@ -34,12 +38,62 @@ export default function ProfilePage({
 }: ProfilePageProps) {
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
+  const [isUploadingResume, setIsUploadingResume] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState(userProfile);
   const [skillInput, setSkillInput] = useState('');
   const [experienceInput, setExperienceInput] = useState('');
   const [educationInput, setEducationInput] = useState('');
   const [certificationInput, setCertificationInput] = useState('');
   const [projectInput, setProjectInput] = useState('');
+
+  const handleResumeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingResume(true);
+    try {
+      const extractedData = await uploadResume(file);
+      
+      // Update form data with extracted resume data
+      const updatedProfile: UserProfile = {
+        ...formData,
+        name: extractedData.name || formData.name,
+        phone: extractedData.phone || formData.phone,
+        location: extractedData.location || formData.location,
+        skills: extractedData.skills?.length ? extractedData.skills : formData.skills,
+        experience: extractedData.experience?.length ? extractedData.experience : formData.experience,
+        education: extractedData.education?.length ? extractedData.education : formData.education,
+        profile_summary: extractedData.profile_summary || formData.profile_summary,
+        resumeUploaded: true,
+      };
+
+      // Save to backend
+      await updateUserProfile({
+        name: updatedProfile.name,
+        email: updatedProfile.email,
+        phone: updatedProfile.phone,
+        location: updatedProfile.location,
+        skills: updatedProfile.skills,
+        experience: updatedProfile.experience,
+        education: updatedProfile.education,
+        profile_summary: updatedProfile.profile_summary,
+      });
+
+      setFormData(updatedProfile);
+      updateProfile(updatedProfile);
+      toast.success('Resume uploaded and profile updated!');
+    } catch (error) {
+      console.error('Error uploading resume:', error);
+      toast.error('Failed to upload resume. Please try again.');
+    } finally {
+      setIsUploadingResume(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -313,7 +367,7 @@ export default function ProfilePage({
                         className="w-full bg-background border border-border rounded-lg px-4 py-3 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
                       />
                     ) : (
-                      <p className="text-lg text-foreground">{formData.location}</p>
+                      <p className="text-lg text-foreground">{formData.phone}</p>
                     )}
                   </div>
 
@@ -562,6 +616,66 @@ export default function ProfilePage({
                   </div>
 
                 </div>
+
+                {/* Resume Upload Section */}
+                {!isEditing && (
+                  <div className="pt-6 border-t border-border">
+                    <h3 className="text-lg font-semibold text-foreground mb-2">Resume & Profile Data</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Upload a new resume to automatically update your profile information.
+                    </p>
+                    <div className="flex flex-wrap gap-4">
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        accept=".pdf,.doc,.docx"
+                        onChange={handleResumeUpload}
+                        className="hidden"
+                        id="resume-upload"
+                      />
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploadingResume}
+                        className="px-4 py-2 rounded-xl border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isUploadingResume ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-4 h-4" />
+                            Upload New Resume
+                          </>
+                        )}
+                      </button>
+                      {userProfile.resumeUploaded && (
+                        <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <FileText className="w-4 h-4 text-green-500" />
+                          Resume on file
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Security Section */}
+                {!isEditing && (
+                  <div className="pt-6 border-t border-border">
+                    <h3 className="text-lg font-semibold text-foreground mb-4">Security</h3>
+                    <div className="flex flex-wrap gap-4">
+                      <ChangePasswordModal />
+                      <button
+                        onClick={handleSignOut}
+                        className="px-4 py-2 rounded-xl border border-destructive/30 bg-destructive/10 text-destructive hover:bg-destructive/20 font-medium transition-colors flex items-center gap-2"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Sign Out
+                      </button>
+                    </div>
+                  </div>
+                )}
 
               </div>
             </div>

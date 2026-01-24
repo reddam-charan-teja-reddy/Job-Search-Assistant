@@ -1,29 +1,28 @@
 import React, { useState } from 'react';
-import { Upload, Check, Loader2, Mail, ArrowRight } from 'lucide-react';
+import { Upload, Check, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { UserProfile, SignInData, Job, Chat, Message } from '../App';
-import { uploadResume, confirmOnboarding, signIn } from '../services/api';
+import { UserProfile, SignInData } from '../App';
+import { uploadResume, confirmOnboarding } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 interface OnboardingPageProps {
   onComplete: (profile: UserProfile, signInData?: SignInData) => void;
 }
 
 export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
-  const [mode, setMode] = useState<'choice' | 'signin' | 'onboard'>('choice');
-  const [signInEmail, setSignInEmail] = useState('');
-  const [isSigningIn, setIsSigningIn] = useState(false);
+  const { user, updateUser } = useAuth();
   const [resumeUploaded, setResumeUploaded] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
+    name: user?.name || '',
+    email: user?.email || '',
     phone: '',
-    location: '',
-    skills: [] as string[],
-    experience: [] as string[],
-    profile_summary: '',
-    education: [] as string[],
+    location: user?.location || '',
+    skills: user?.skills || [] as string[],
+    experience: user?.experience || [] as string[],
+    profile_summary: user?.profile_summary || '',
+    education: user?.education || [] as string[],
     certificationsAndAchievementsAndAwards: [] as string[],
     projects: [] as string[],
     about: '',
@@ -34,82 +33,6 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
   const [certificationInput, setCertificationInput] = useState('');
   const [projectInput, setProjectInput] = useState('');
 
-  const handleSignIn = async () => {
-    if (!signInEmail.trim()) {
-      toast.error('Please enter your email');
-      return;
-    }
-
-    setIsSigningIn(true);
-    try {
-      const response = await signIn(signInEmail.trim());
-      if (response.exists && response.user) {
-        const profileData = { ...response.user, resumeUploaded: true };
-        
-        // Convert saved jobs from DB format to frontend Job format
-        const savedJobs: Job[] = (response.saved_jobs || []).map(job => ({
-          id: job.job_id,
-          title: job.job_title,
-          company: job.company_name,
-          role: 'Full-time',
-          description: '',
-          location: '',
-          salary: '',
-          applyLink: job.job_link,
-        }));
-        
-        // Convert applied jobs from DB format to frontend Job format
-        const appliedJobs: Job[] = (response.applied_jobs || []).map(job => ({
-          id: job.job_id,
-          title: job.job_title,
-          company: job.company_name,
-          role: 'Full-time',
-          description: '',
-          location: '',
-          salary: '',
-          applyLink: job.job_link,
-        }));
-        
-        // Convert chat history from DB format to frontend Chat format
-        const chats: Chat[] = (response.chat_history || []).map(chat => ({
-          id: chat.id || chat.chat_id,
-          title: chat.chat_name,
-          messages: (chat.messages || []).map((msg, idx) => ({
-            id: `msg-${idx}`,
-            sender: msg.sender as 'user' | 'bot',
-            content: msg.message,
-            timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
-          })),
-          timestamp: chat.created_at ? new Date(chat.created_at) : new Date(),
-        }));
-        
-        const signInData: SignInData = {
-          profile: profileData,
-          savedJobs,
-          appliedJobs,
-          chats,
-        };
-        
-        console.log('[SIGN_IN] Loaded data:', {
-          savedJobs: savedJobs.length,
-          appliedJobs: appliedJobs.length,
-          chats: chats.length,
-        });
-        
-        onComplete(profileData, signInData);
-        toast.success(`Welcome back, ${response.user.name}!`);
-      } else {
-        toast.error('No account found with this email. Please sign up.');
-        setMode('onboard');
-      }
-    } catch (error) {
-      console.error('Error signing in:', error);
-      toast.error('Failed to sign in. Please try again.');
-    } finally {
-      setIsSigningIn(false);
-    }
-  };
-
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -119,6 +42,13 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
         setFormData({
           ...formData,
           ...extractedData,
+          // Ensure string fields have defaults
+          name: extractedData.name || formData.name || '',
+          email: extractedData.email || formData.email || '',
+          phone: extractedData.phone || '',
+          location: extractedData.location || '',
+          profile_summary: extractedData.profile_summary || '',
+          about: extractedData.about || '',
           // Ensure arrays are initialized if they come back as null/undefined
           skills: extractedData.skills || [],
           experience: extractedData.experience || [],
@@ -245,6 +175,8 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
     try {
       const profileData = { ...formData, resumeUploaded: true };
       await confirmOnboarding(profileData);
+      // Update the user in AuthContext to reflect onboarded status
+      updateUser({ is_onboarded: true });
       onComplete(profileData);
       toast.success('Profile created successfully!');
     } catch (error) {
@@ -259,109 +191,12 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
       <div className="max-w-2xl w-full bg-card rounded-2xl shadow-xl p-8 border border-border">
         
-        {/* Choice Screen */}
-        {mode === 'choice' && (
-          <div className="space-y-8 animate-fadeIn">
-            <div className="text-center mb-8">
-              <h1 className="text-foreground text-3xl font-bold mb-3">Welcome to JobBot</h1>
-              <p className="text-muted-foreground">Your AI-powered career assistant</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Sign In Option */}
-              <button
-                onClick={() => setMode('signin')}
-                className="group p-6 bg-background border-2 border-border rounded-xl hover:border-primary hover:bg-primary/5 transition-all text-left"
-              >
-                <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-                  <Mail className="w-6 h-6 text-primary" />
-                </div>
-                <h3 className="text-foreground font-semibold text-lg mb-2">Sign In</h3>
-                <p className="text-muted-foreground text-sm">Already have an account? Sign in with your email</p>
-              </button>
-
-              {/* New User Option */}
-              <button
-                onClick={() => setMode('onboard')}
-                className="group p-6 bg-background border-2 border-border rounded-xl hover:border-primary hover:bg-primary/5 transition-all text-left"
-              >
-                <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-                  <Upload className="w-6 h-6 text-primary" />
-                </div>
-                <h3 className="text-foreground font-semibold text-lg mb-2">New User</h3>
-                <p className="text-muted-foreground text-sm">Create a new profile by uploading your resume</p>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Sign In Screen */}
-        {mode === 'signin' && (
-          <div className="space-y-6 animate-fadeIn">
-            <div className="mb-8">
-              <button
-                onClick={() => setMode('choice')}
-                className="text-muted-foreground hover:text-foreground text-sm mb-4 flex items-center gap-1"
-              >
-                ← Back
-              </button>
-              <h1 className="text-foreground text-2xl font-bold mb-2">Welcome Back</h1>
-              <p className="text-muted-foreground">Sign in with your email to continue</p>
-            </div>
-
-            <div>
-              <label htmlFor="signin-email" className="block text-foreground mb-2 font-medium text-sm">Email Address</label>
-              <input
-                id="signin-email"
-                type="email"
-                value={signInEmail}
-                onChange={(e) => setSignInEmail(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSignIn()}
-                placeholder="Enter your email"
-                className="w-full px-4 py-3 bg-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-border outline-none text-foreground"
-              />
-            </div>
-
-            <button
-              onClick={handleSignIn}
-              disabled={isSigningIn}
-              className="w-full py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium"
-            >
-              {isSigningIn ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Signing in...
-                </>
-              ) : (
-                <>
-                  Sign In
-                  <ArrowRight className="w-5 h-5" />
-                </>
-              )}
-            </button>
-
-            <p className="text-center text-muted-foreground text-sm">
-              Don't have an account?{' '}
-              <button onClick={() => setMode('onboard')} className="text-primary hover:underline font-medium">
-                Create one
-              </button>
-            </p>
-          </div>
-        )}
-
         {/* Onboarding Screen */}
-        {mode === 'onboard' && (
-          <div className="animate-fadeIn">
-            <div className="mb-8">
-              <button
-                onClick={() => setMode('choice')}
-                className="text-muted-foreground hover:text-foreground text-sm mb-4 flex items-center gap-1"
-              >
-                ← Back
-              </button>
-              <h1 className="text-foreground text-2xl font-bold mb-2">Create Your Profile</h1>
-              <p className="text-muted-foreground">Let's get started by uploading your resume</p>
-            </div>
+        <div className="animate-fadeIn">
+          <div className="mb-8">
+            <h1 className="text-foreground text-2xl font-bold mb-2">Complete Your Profile</h1>
+            <p className="text-muted-foreground">Upload your resume to get started with personalized job recommendations</p>
+          </div>
 
         {/* Resume Upload Section */}
         <div className="mb-8">
@@ -426,7 +261,8 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-border outline-none text-foreground"
+                  disabled
+                  className="w-full px-4 py-2 bg-muted border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-border outline-none text-foreground cursor-not-allowed"
                 />
               </div>
             </div>
@@ -497,7 +333,7 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
               <label className="block text-foreground mb-2 font-medium text-sm">Profile Summary</label>
               <textarea
                 name="profile_summary"
-                value={formData.profile_summary}
+                value={formData.profile_summary || ''}
                 onChange={handleInputChange}
                 rows={4}
                 placeholder="Brief summary of your professional background"
@@ -658,7 +494,7 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
               <textarea
                 id="about"
                 name="about"
-                value={formData.about}
+                value={formData.about || ''}
                 onChange={handleInputChange}
                 rows={3}
                 className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-border outline-none resize-none text-foreground"
@@ -676,13 +512,12 @@ export default function OnboardingPage({ onComplete }: OnboardingPageProps) {
                   Creating Profile...
                 </>
               ) : (
-                'Next'
+                'Complete Setup'
               )}
             </button>
           </div>
         )}
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );

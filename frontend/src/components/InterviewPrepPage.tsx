@@ -72,8 +72,8 @@ export default function InterviewPrepPage({
     try {
       const [interviewersRes, interviewsRes, historyRes] = await Promise.all([
         getInterviewers(),
-        getUserInterviews(userProfile.email),
-        getInterviewHistory(userProfile.email),
+        getUserInterviews(),
+        getInterviewHistory(),
       ]);
 
       setInterviewers(interviewersRes.interviewers);
@@ -97,7 +97,6 @@ export default function InterviewPrepPage({
     setIsCreating(true);
     try {
       const interview = await createJobInterview({
-        email: userProfile.email,
         job_id: job.id,
         job_title: job.title,
         company_name: job.company,
@@ -154,7 +153,6 @@ export default function InterviewPrepPage({
       if (selectedJob) {
         // Create job-specific interview
         interview = await createJobInterview({
-          email: userProfile.email,
           job_id: selectedJob.id,
           job_title: selectedJob.title,
           company_name: selectedJob.company,
@@ -170,7 +168,6 @@ export default function InterviewPrepPage({
       } else {
         // Create custom interview
         interview = await createInterview({
-          email: userProfile.email,
           name: customName,
           objective: customObjective,
           interviewer_id: selectedInterviewer,

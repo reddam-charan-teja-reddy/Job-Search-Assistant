@@ -1,647 +1,719 @@
-# Job Search App with Chatbot & AI Mock Interviews — Full Documentation
+# Job Search Assistant — Full Technical Documentation
 
-This document describes the architecture, backend API routes, frontend components, data models, and how both parts work together. It also includes environment, setup, and contribution guidelines.
+This document describes the architecture, authentication system, backend API routes, frontend components, data models, and how both parts work together.
+
+---
+
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Authentication System](#authentication-system)
+3. [Backend Architecture](#backend-architecture)
+4. [API Routes Reference](#api-routes-reference)
+5. [Database Schema](#database-schema)
+6. [Frontend Architecture](#frontend-architecture)
+7. [Data Flow](#data-flow)
+8. [Security](#security)
+9. [Debugging](#debugging)
+10. [Deployment](#deployment)
+11. [Contributing](#contributing)
+
+---
 
 ## Overview
 
-- **Frontend**: Vite + React (TypeScript) with Tailwind CSS v4. Provides sign-in/onboarding, chat, job browsing, interview preparation, and profile management UI. Lives under `frontend/`.
-- **Backend**: FastAPI with Google Gemini for AI, JSearch API for job listings, and Retell AI for voice interviews; MongoDB for persistence. Lives under `backend/`.
-- **Key Flows**:
-  - **Sign In**: Returning users sign in with email to restore all their data (profile, saved jobs, applied jobs, chat history).
-  - **Resume Onboarding**: New users upload PDF → Gemini extracts profile → user confirms → stored in MongoDB.
-  - **Chat**: AI assistant helps find jobs, refine searches, and provide guidance. Function calling integrates job search/details.
-  - **Jobs**: Save/Unsave, Apply tracking, and retrieval with persistence.
-  - **Interviews**: Create custom or job-specific mock interviews, conduct voice practice sessions, receive analytics.
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         Frontend                                 │
+│   React 18 + TypeScript + Vite + Tailwind CSS v4                │
+│   ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐          │
+│   │ AuthPage │ │ ChatPage │ │ HomePage │ │Interview │          │
+│   └──────────┘ └──────────┘ └──────────┘ └──────────┘          │
+│         │            │            │            │                 │
+│   ┌─────────────────────────────────────────────────┐           │
+│   │        AuthContext + Services Layer             │           │
+│   │   (auth.ts, api.ts, token management)          │           │
+│   └─────────────────────────────────────────────────┘           │
+└─────────────────────────────────────────────────────────────────┘
+                              │ JWT Auth
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                         Backend                                  │
+│   FastAPI + Python 3.11+                                        │
+│   ┌──────────────────────────────────────────────────┐          │
+│   │              Routes Layer (Modular)              │          │
+│   │  auth_routes │ user_routes │ chat_routes │ ...  │          │
+│   └──────────────────────────────────────────────────┘          │
+│         │               │              │                         │
+│   ┌─────────────────────────────────────────────────┐           │
+│   │            Services & Clients                    │           │
+│   │  chat_service │ interview_service │ jsearch     │           │
+│   └─────────────────────────────────────────────────┘           │
+│         │               │              │                         │
+│   ┌─────────────────────────────────────────────────┐           │
+│   │     Core: auth.py │ db.py │ models.py           │           │
+│   └─────────────────────────────────────────────────┘           │
+└─────────────────────────────────────────────────────────────────┘
+         │                    │                    │
+         ▼                    ▼                    ▼
+    ┌─────────┐        ┌───────────┐        ┌──────────┐
+    │ MongoDB │        │ Gemini AI │        │ JSearch  │
+    │  Atlas  │        │    API    │        │   API    │
+    └─────────┘        └───────────┘        └──────────┘
+```
+
+### Key Technologies
+
+| Layer    | Technology                                          |
+| -------- | --------------------------------------------------- |
+| Frontend | React 18, TypeScript, Vite, Tailwind CSS v4         |
+| Backend  | FastAPI, Python 3.11+, Pydantic                     |
+| Database | MongoDB Atlas with Motor (async driver)             |
+| Auth     | JWT (HS256) + bcrypt password hashing               |
+| AI       | Google Gemini API (chat, parsing, function calling) |
+| Jobs     | JSearch API (RapidAPI)                              |
+| Voice    | Retell AI (mock interviews)                         |
 
 ---
 
-## Backend
+## Authentication System
 
-Location: `backend/`
+### Overview
 
-### Environment
+The application uses industry-standard JWT-based authentication with:
 
-Create `backend/.env` with:
+- **Access Tokens**: Short-lived (30 min) for API requests
+- **Refresh Tokens**: Longer-lived (7 days) for obtaining new access tokens
+- **Password Hashing**: bcrypt with cost factor 12
+
+### Backend Auth Module (`backend/core/auth.py`)
+
+```python
+# Key configurations
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+REFRESH_TOKEN_EXPIRE_DAYS = 7
+BCRYPT_COST_FACTOR = 12
+```
+
+#### Password Security
+
+- **Hashing**: bcrypt with cost factor 12 (~250ms per hash)
+- **Validation**: OWASP-compliant password requirements:
+  - Minimum 8 characters
+  - At least one uppercase letter
+  - At least one lowercase letter
+  - At least one digit
+  - At least one special character
+
+#### Token Structure
+
+```python
+# Access Token Payload
+{
+    "sub": "user_id",
+    "email": "user@example.com",
+    "type": "access",
+    "exp": datetime,
+    "iat": datetime
+}
+
+# Refresh Token Payload
+{
+    "sub": "user_id",
+    "type": "refresh",
+    "exp": datetime,
+    "iat": datetime
+}
+```
+
+#### Key Functions
+
+| Function                         | Purpose                      |
+| -------------------------------- | ---------------------------- |
+| `hash_password(password)`        | Hash password with bcrypt    |
+| `verify_password(plain, hashed)` | Verify password against hash |
+| `create_access_token(data)`      | Generate JWT access token    |
+| `create_refresh_token(data)`     | Generate JWT refresh token   |
+| `verify_token(token, type)`      | Validate and decode token    |
+| `get_current_user(token)`        | FastAPI dependency for auth  |
+
+### Frontend Auth (`frontend/src/services/auth.ts`)
+
+#### Token Management
+
+```typescript
+// Token storage (localStorage)
+const ACCESS_TOKEN_KEY = "access_token";
+const REFRESH_TOKEN_KEY = "refresh_token";
+const USER_KEY = "auth_user";
+
+// Auto-refresh before expiry
+// Tokens are automatically refreshed when API returns 401
+```
+
+#### AuthContext (`frontend/src/context/AuthContext.tsx`)
+
+Provides authentication state to the entire app:
+
+```typescript
+interface AuthContextType {
+  user: AuthUser | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+  login: (email, password) => Promise<LoginResponse>;
+  register: (
+    email,
+    password,
+    confirmPassword,
+    name,
+  ) => Promise<RegisterResponse>;
+  logout: () => Promise<void>;
+  updateUser: (userData) => void;
+  refreshUser: () => Promise<void>;
+}
+```
+
+### Auth Flow Diagram
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                     REGISTRATION                              │
+├──────────────────────────────────────────────────────────────┤
+│  User → /auth/register → Validate → Hash Password → Store   │
+│       ← { access_token, refresh_token, user }                │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│                        LOGIN                                  │
+├──────────────────────────────────────────────────────────────┤
+│  User → /auth/login → Verify Password → Generate Tokens     │
+│       ← { access_token, refresh_token, user }                │
+└──────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────┐
+│                   API REQUEST                                 │
+├──────────────────────────────────────────────────────────────┤
+│  Request + Bearer Token → Validate Token → Process Request  │
+│  If 401 → Try Refresh → Retry Request                        │
+│  If Refresh Fails → Logout User                              │
+└──────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Backend Architecture
+
+### File Structure
+
+```
+backend/
+├── main.py                    # FastAPI app entry point
+│
+├── core/                      # Core modules
+│   ├── __init__.py
+│   ├── auth.py                # JWT & password security
+│   ├── db.py                  # MongoDB connection
+│   └── models.py              # Pydantic data models
+│
+├── services/                  # Business logic layer
+│   ├── __init__.py
+│   ├── chat_service.py        # Gemini chat with function calling
+│   └── interview_service.py   # Retell AI & interview logic
+│
+├── clients/                   # External API clients
+│   ├── __init__.py
+│   ├── jsearch_client.py      # JSearch API client
+│   └── gemini_client.py       # Gemini API utilities
+│
+├── routes/                    # API route handlers (modular)
+│   ├── __init__.py
+│   ├── auth_routes.py         # /api/auth/* endpoints
+│   ├── user_routes.py         # Profile, onboarding
+│   ├── chat_routes.py         # Chat sessions, messages
+│   ├── jobs_routes.py         # Save, unsave, apply jobs
+│   └── interview_routes.py    # Interview management
+│
+├── requirements.txt           # Python dependencies
+└── .env                       # Environment variables
+```
+
+### Environment Variables
 
 ```env
-GEMINI_API_KEY=<your_key>
-MONGODB_URI=<connection_string>
-JSEARCH_API_KEY=<your_key>
-RETELL_API_KEY=<your_key>
-RETELL_AGENT_ID_1=<agent_id>
-RETELL_AGENT_ID_2=<agent_id>
-RETELL_AGENT_ID_3=<agent_id>
+# Database
+MONGODB_URI=mongodb+srv://...
+
+# AI Services
+GEMINI_API_KEY=...
+JSEARCH_API_KEY=...
+
+# Authentication
+JWT_SECRET_KEY=...              # Min 32 chars, secure random
+JWT_REFRESH_SECRET_KEY=...      # Min 32 chars, secure random
+
+# Voice Interviews
+RETELL_API_KEY=...
+RETELL_AGENT_ID_1=...
+RETELL_AGENT_ID_2=...
+RETELL_AGENT_ID_3=...
 ```
 
-### Dependencies
+### Main Entry (`main.py`)
 
-See `backend/requirements.txt`. Core libs:
+```python
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-- FastAPI, Uvicorn
-- PyPDF2
-- pydantic
-- google-generativeai
-- motor / pymongo (via `db.py`)
-- retell-sdk (for voice interviews)
+# Import routers
+from routes.auth_routes import router as auth_router
+from routes.user_routes import router as user_router
+from routes.chat_routes import router as chat_router
+from routes.jobs_routes import router as jobs_router
+from routes.interview_routes import router as interview_router
 
-### Data Models (Pydantic)
+app = FastAPI(title="Job Search Assistant API")
 
-Defined in `backend/models.py`:
+# CORS configuration
+app.add_middleware(CORSMiddleware, ...)
 
-#### User & Authentication Models
-
-- `UserOnboardingResponse`: Structured profile data (name, email, skills, experience, education, etc.)
-- `SignInRequest`: Email-based sign in request
-- `SignInResponse`: Returns `exists`, `user`, `saved_jobs`, `applied_jobs`, `chat_history`
-- `UserProfileUpdateRequest`: Partial profile updates
-
-#### Chat Models
-
-- `ChatMessage`: Message with sender, message, timestamp
-- `Chat`: Chat session with messages, chat_name, id
-- `ChatContext`: Permanent context, conversation summary, recent messages
-- `ChatHistoryResponseItem`, `ChatHistoryResponse`: Chat list responses
-- `CreateChatRequest/Response`: New chat creation
-- `ChatMessageRequest/Response`: Message send/receive
-- `GetChatMessagesRequest/Response`: Fetch messages for a chat
-
-#### Job Models
-
-- `JobCardData`: Full job card with all details
-- `GetAppliedJobsResponseItem`, `GetAppliedJobsResponse`
-- `GetSavedJobsResponseItem`, `GetSavedJobsResponse`
-- `SaveJobRequest`, `ApplyJobRequest`
-
-#### Interview Models
-
-- `Interviewer`: AI interviewer profile (id, name, personality, traits)
-- `InterviewQuestion`: Question with follow-up count
-- `Interview`: Full interview document (name, objective, questions, job context)
-- `CreateInterviewRequest/Response`: Custom interview creation
-- `CreateJobInterviewRequest/Response`: Job-specific interview creation
-- `InterviewResponse`: Voice interview session data
-- `InterviewAnalytics`: Performance scores and feedback
-- `RegisterCallRequest/Response`: Retell voice call registration
+# Register routers
+app.include_router(auth_router, prefix="/api/auth", tags=["Authentication"])
+app.include_router(user_router, prefix="/api", tags=["User"])
+app.include_router(chat_router, prefix="/api", tags=["Chat"])
+app.include_router(jobs_router, prefix="/api", tags=["Jobs"])
+app.include_router(interview_router, prefix="/api", tags=["Interviews"])
+```
 
 ---
 
-### API Routes
+## API Routes Reference
 
-Implemented in `backend/main.py`. All routes include logging tags for debugging.
+### Authentication Routes (`/api/auth/*`)
 
-#### Authentication & User Routes
+| Method | Endpoint    | Description              | Auth Required |
+| ------ | ----------- | ------------------------ | ------------- |
+| POST   | `/register` | Create new account       | No            |
+| POST   | `/login`    | Login & get tokens       | No            |
+| POST   | `/refresh`  | Refresh access token     | Refresh Token |
+| POST   | `/logout`   | Invalidate tokens        | Yes           |
+| GET    | `/me`       | Get current user profile | Yes           |
 
-**`POST /api/signIn`** _(NEW)_
+#### POST `/api/auth/register`
 
-- Input: `SignInRequest { email }`
-- Process: Finds user by email, returns full profile with saved_jobs, applied_jobs, and chat_history
-- Output: `SignInResponse { exists, user?, saved_jobs?, applied_jobs?, chat_history? }`
-- Logging: `[SIGN_IN]`
-
-**`POST /api/onboardFileUpload`**
-
-- Input: Raw PDF file body
-- Process: Parses resume text → prompts Gemini with JSON schema → returns validated profile
-- Output: `UserOnboardingResponse`
-- Errors: 400 for non-PDF; 500 on processing issues
-
-**`POST /api/confirmOnboardingDetails`**
-
-- Input: `UserOnboardingResponse` (confirmed by user)
-- Process: Upserts user doc in `users` collection; initializes `chat_history`, `saved_jobs`, `applied_jobs`
-- Output: `{ message, id | email }`
-- Logging: `[ONBOARD]`
-
-**`POST /api/updateUserProfile`**
-
-- Input: `UserProfileUpdateRequest` (partial updates supported)
-- Process: `$set` fields for the user
-- Logging: `[UPDATE_PROFILE]`
-
-#### Chat Routes
-
-**`GET /api/chatHistoryRequest?email=<email>`**
-
-- Output: `ChatHistoryResponse` containing `{ id, chat_name, chat_id }` per chat
-- Logging: `[CHAT_HISTORY]`
-
-**`POST /api/createChat`**
-
-- Input: `CreateChatRequest { email }`
-- Process: Creates permanent context via Gemini from user profile, initializes chat with greeting
-- Output: `CreateChatResponse { chat_id, chat_name, initial_message }`
-- Logging: `[CREATE_CHAT]`
-
-**`POST /api/sendMessage`**
-
-- Input: `ChatMessageRequest { email, chat_id, message, selected_job_id?, selected_job_data? }`
-- Process: Builds context prompt (permanent profile, conversation summary, recent messages). Uses Gemini with function calling:
-  - `search_jobs(query, ...)` → returns job cards for UI
-  - `get_job_details(job_id, ...)` → returns selected job details
-- Output: `ChatMessageResponse { message, jobs?, selected_job_details? }`
-- Logging: `[SEND_MESSAGE]`
-
-**`GET /api/getChatMessages?email=<email>&chat_id=<id>`**
-
-- Output: `{ messages, chat_name }` for the chat
-- Logging: `[GET_CHAT_MESSAGES]`
-
-**`POST /api/deleteChat`**
-
-- Input: `{ email, chat_id }`
-- Process: Removes chat from user's chat_history array
-- Logging: `[DELETE_CHAT]`
-
-#### Job Routes
-
-**`GET /api/getSavedJobs?email=<email>`**
-
-- Output: `GetSavedJobsResponse` (list of saved jobs)
-- Logging: `[GET_SAVED_JOBS]`
-
-**`GET /api/getAppliedJobs?email=<email>`**
-
-- Output: `GetAppliedJobsResponse` (list of applied jobs)
-- Logging: `[GET_APPLIED_JOBS]`
-
-**`POST /api/saveJob`**
-
-- Input: `SaveJobRequest { email, job_id, job_title, company_name, job_link }`
-- Process: `$addToSet` to `saved_jobs`
-- Logging: `[SAVE_JOB]`
-
-**`POST /api/unsaveJob`**
-
-- Input: `SaveJobRequest` (same as above)
-- Process: `$pull` from `saved_jobs`
-- Logging: `[UNSAVE_JOB]`
-
-**`POST /api/applyJob`**
-
-- Input: `ApplyJobRequest`
-- Process: Tracks applied jobs after user confirms in UI
-- Logging: `[APPLY_JOB]`
-
-#### Interview Routes
-
-**`GET /api/interviewers`**
-
-- Output: List of available AI interviewer profiles
-- Returns: `[{ id, name, personality, description, voice, empathy, exploration, rapport_building, professionalism }]`
-
-**`POST /api/createInterview`**
-
-- Input: `CreateInterviewRequest { email, name, objective, interviewer_id, question_count, time_duration }`
-- Process: Generates interview questions via Gemini AI based on objective
-- Output: `CreateInterviewResponse { interview_id, name, questions, interviewer }`
-
-**`POST /api/createJobInterview`**
-
-- Input: `CreateJobInterviewRequest { email, job_id, job_title, company_name, interviewer_id, question_count, time_duration }`
-- Process: Generates job-specific interview questions using job details
-- Output: `CreateJobInterviewResponse { interview_id, name, questions, interviewer, job_context }`
-
-**`GET /api/interviews?email=<email>`**
-
-- Output: List of user's interview sessions with metadata
-
-**`GET /api/interview/{interview_id}?email=<email>`**
-
-- Output: Full interview details including questions, interviewer info, and job context
-
-**`POST /api/registerCall`**
-
-- Input: `RegisterCallRequest { interview_id, email }`
-- Process: Creates Retell AI voice call session, returns call credentials
-- Output: `RegisterCallResponse { call_id, access_token, sample_rate }`
-
-**`POST /api/updateInterviewResponse`**
-
-- Input: `{ interview_id, call_id, transcript?, duration?, is_ended? }`
-- Process: Updates interview response with call data
-
-**`GET /api/interviewHistory?email=<email>`**
-
-- Output: User's practice session history with analytics
-
-**`POST /api/analyzeInterview`**
-
-- Input: `{ interview_id, response_id }`
-- Process: Analyzes transcript via Gemini, generates scores and feedback
-- Output: `InterviewAnalytics { overall_score, communication_score, technical_score, strengths, improvements }`
-
-**`POST /api/submitInterviewFeedback`**
-
-- Input: `{ interview_id, email, feedback, satisfaction }`
-- Process: Stores user feedback about interview experience
-
-**`POST /api/retellWebhook`**
-
-- Input: Retell callback payload
-- Process: Handles call status updates, transcript completion
-
-**`POST /api/generateInterviewObjective`**
-
-- Input: `{ job_title, company_name, job_description? }`
-- Process: Uses Gemini to generate suggested interview objectives
-- Output: `{ objective }`
-
----
-
-### Backend Services
-
-#### Interview Service (`backend/interview_service.py`)
-
-- Retell AI client initialization and configuration
-- Interview question generation via Gemini AI
-- Voice call session management
-- Interview analytics generation
-- Interviewer profile management
-
-#### Retell AI Agent Configuration
-
-**CRITICAL**: The Retell agents must be configured with specific dynamic variable placeholders. The backend sends these exact variable names via `retell_llm_dynamic_variables`:
-
-| Variable        | Description                                | Example Value                         |
-| --------------- | ------------------------------------------ | ------------------------------------- |
-| `{{mins}}`      | Interview duration in minutes              | `"10"`                                |
-| `{{name}}`      | Candidate's name                           | `"John Doe"`                          |
-| `{{objective}}` | Interview objective with context and rules | Full objective text with instructions |
-| `{{questions}}` | Numbered list of questions                 | `"1. Tell me about yourself\n2. ..."` |
-
-**Example Retell Agent Prompt Template:**
-
-```
-You are an interviewer who is an expert in asking follow-up questions to uncover deeper insights. You have to keep the interview for {{mins}} or shorter.
-
-The name of the person you are interviewing is {{name}}.
-
-The interview objective is {{objective}}.
-
-These are some of the questions you can ask.
-{{questions}}
-
-Once you ask a question, make sure you ask a follow-up question on it.
-
-Follow the guidelines below when conversing.
-- Follow a professional yet friendly tone.
-- Ask precise and open-ended questions
-- The question word count should be 30 words or fewer.
-- Make sure you do not repeat any of the questions.
-- Do not talk about anything not related to the objective and the given questions.
-- If the name is given, use it in the conversation
-```
-
-**Note**: The `{{objective}}` variable sent by the backend includes enhanced context:
-
-- Job title and company name (if job-specific interview)
-- Interview rules (max 2 follow-ups per question, ask all questions in order)
-- Candidate's resume/background summary
-
-#### Chat Service (`backend/chat_service.py`)
-
-- Gemini configuration and system prompt
-- Function declarations for `search_jobs` and `get_job_details`
-- Context management: permanent profile context, conversation summary, recent messages
-- Database updates of chat messages and context
-
-#### Job Search Client (`backend/jsearch_client.py`)
-
-- `search_jobs` and `get_job_details` wrappers to JSearch API
-- `extract_job_cards_from_response(result)` returns compact cards for frontend
-- `extract_job_card_data(job)` returns detailed card for a single job
-
----
-
-### Database
-
-`backend/db.py` defines database connection and collections:
-
-#### `users` Collection
-
-User document structure:
+**Request:**
 
 ```json
 {
-  "_id": "ObjectId",
   "email": "user@example.com",
+  "password": "SecurePass123!",
+  "confirm_password": "SecurePass123!",
+  "name": "John Doe"
+}
+```
+
+**Response:**
+
+```json
+{
+  "access_token": "eyJ...",
+  "refresh_token": "eyJ...",
+  "token_type": "bearer",
+  "user": {
+    "id": "507f1f77bcf86cd799439011",
+    "email": "user@example.com",
+    "name": "John Doe",
+    "is_onboarded": false,
+    "skills": [],
+    "experience": []
+  }
+}
+```
+
+#### POST `/api/auth/login`
+
+**Request:**
+
+```json
+{
+  "email": "user@example.com",
+  "password": "SecurePass123!"
+}
+```
+
+**Response:** Same as register
+
+---
+
+### User Routes (`/api/*`)
+
+| Method | Endpoint                    | Description           |
+| ------ | --------------------------- | --------------------- |
+| POST   | `/onboardFileUpload`        | Parse resume PDF      |
+| POST   | `/confirmOnboardingDetails` | Complete onboarding   |
+| POST   | `/updateUserProfile`        | Update profile fields |
+
+#### POST `/api/onboardFileUpload`
+
+- **Content-Type**: `application/pdf`
+- **Body**: Raw PDF file bytes
+- **Process**: Extracts text → Gemini parses structured data
+- **Response**: `UserOnboardingResponse` with extracted profile fields
+
+#### POST `/api/confirmOnboardingDetails`
+
+**Request:**
+
+```json
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "phone": "+1234567890",
+  "location": "New York, NY",
+  "skills": ["Python", "React", "FastAPI"],
+  "experience": ["Software Engineer at Company X (2020-2023)"],
+  "education": ["BS Computer Science, MIT"],
+  "profile_summary": "Full-stack developer..."
+}
+```
+
+---
+
+### Chat Routes (`/api/*`)
+
+| Method | Endpoint           | Description                    |
+| ------ | ------------------ | ------------------------------ |
+| GET    | `/chatHistory`     | Get user's chat sessions       |
+| POST   | `/createChat`      | Create new chat session        |
+| POST   | `/sendMessage`     | Send message & get AI response |
+| GET    | `/getChatMessages` | Get messages for a chat        |
+| DELETE | `/chat/{chatId}`   | Delete a chat session          |
+
+#### POST `/api/sendMessage`
+
+**Request:**
+
+```json
+{
+  "chat_id": "507f1f77bcf86cd799439011",
+  "message": "Find me backend developer jobs",
+  "selected_job_id": null,
+  "selected_job_data": null
+}
+```
+
+**Response:**
+
+```json
+{
+  "message": "I found several backend developer positions...",
+  "jobs": [
+    {
+      "job_id": "abc123",
+      "job_title": "Senior Backend Developer",
+      "employer_name": "Tech Corp",
+      "job_location": "Remote",
+      "job_salary": "$120k - $150k"
+    }
+  ],
+  "selected_job_details": null
+}
+```
+
+---
+
+### Jobs Routes (`/api/*`)
+
+| Method | Endpoint            | Description         |
+| ------ | ------------------- | ------------------- |
+| GET    | `/getSavedJobs`     | Get saved jobs      |
+| GET    | `/getAppliedJobs`   | Get applied jobs    |
+| POST   | `/saveJob`          | Save a job          |
+| DELETE | `/savedJob/{jobId}` | Unsave a job        |
+| POST   | `/applyJob`         | Mark job as applied |
+
+---
+
+### Interview Routes (`/api/*`)
+
+| Method | Endpoint              | Description                   |
+| ------ | --------------------- | ----------------------------- |
+| GET    | `/interviewers`       | Get AI interviewer profiles   |
+| POST   | `/createInterview`    | Create custom interview       |
+| POST   | `/createJobInterview` | Create job-specific interview |
+| GET    | `/interviews`         | Get user's interviews         |
+| GET    | `/interview/{id}`     | Get interview details         |
+| POST   | `/registerCall`       | Start voice call session      |
+| POST   | `/analyzeInterview`   | Get performance analytics     |
+
+---
+
+## Database Schema
+
+### Users Collection
+
+```javascript
+{
+  "_id": ObjectId,
+  "email": "user@example.com",
+  "password_hash": "$2b$12$...",        // bcrypt hash
   "name": "John Doe",
   "phone": "+1234567890",
   "location": "New York, NY",
-  "skills": ["Python", "React", "..."],
-  "experience": ["Software Engineer at Company X", "..."],
-  "profile_summary": "Experienced developer...",
-  "education": ["BS Computer Science", "..."],
-  "certificationsAndAchievementsAndAwards": ["AWS Certified", "..."],
-  "projects": ["E-commerce Platform", "..."],
-  "about": "Passionate about...",
+  "skills": ["Python", "React", "FastAPI"],
+  "experience": ["Software Engineer at Company X (2020-2023)"],
+  "education": ["BS Computer Science, MIT"],
+  "projects": ["E-commerce Platform", "Chat Application"],
+  "certifications": ["AWS Certified Developer"],
+  "profile_summary": "Full-stack developer with 5 years experience...",
+  "is_onboarded": true,
+  "created_at": ISODate,
+  "updated_at": ISODate,
+
+  // Embedded arrays
   "saved_jobs": [
     {
-      "job_id": "...",
-      "job_title": "...",
-      "company_name": "...",
-      "job_link": "..."
+      "job_id": "abc123",
+      "job_title": "Backend Developer",
+      "company_name": "Tech Corp",
+      "job_link": "https://..."
     }
   ],
-  "applied_jobs": [
-    {
-      "job_id": "...",
-      "job_title": "...",
-      "company_name": "...",
-      "job_link": "..."
-    }
-  ],
+  "applied_jobs": [...],
+
   "chat_history": [
     {
-      "chat_id": "uuid",
-      "chat_name": "Job Search - Software Engineer",
+      "_id": ObjectId,
+      "chat_name": "Job Search - Backend",
       "messages": [
-        { "sender": "bot", "message": "Hello!", "timestamp": "ISO8601" }
+        {
+          "sender": "bot",
+          "message": "Hello! How can I help?",
+          "timestamp": ISODate
+        }
       ],
       "context": {
-        "permanent_context": "User profile summary...",
+        "permanent_context": {...},
         "conversation_summary": "...",
-        "recent_messages": []
+        "recent_messages": [...],
+        "selected_job": null
       },
-      "created_at": "ISO8601"
+      "created_at": ISODate
     }
   ]
 }
 ```
 
-#### `interviews` Collection
+### Interviews Collection
 
-Interview documents with questions, interviewer settings, job context.
-
-#### `interview_responses` Collection
-
-Voice call session data with transcripts and analytics.
-
-#### `interview_feedback` Collection
-
-User feedback on interview experiences.
-
----
-
-## Frontend
-
-Location: `frontend/`
-
-### Tech Stack
-
-- **Vite** + **React 18** + **TypeScript**
-- **Tailwind CSS v4** with `@tailwindcss/vite` plugin
-- Component library under `frontend/src/components/ui/*` (shadcn/ui style)
-- **React Router DOM** for routing
-- **Sonner** for toast notifications
-- ES Modules (`"type": "module"` in package.json)
-
-### Application Routes
-
-| Route                     | Component           | Description                                            |
-| ------------------------- | ------------------- | ------------------------------------------------------ |
-| `/`                       | `OnboardingPage`    | Sign in (returning users) or resume upload (new users) |
-| `/home`                   | `HomePage`          | Dashboard with quick actions, saved jobs, recent chats |
-| `/chat/:chatId`           | `ChatPage`          | AI chat for job search with floating input             |
-| `/profile`                | `ProfilePage`       | User profile view and edit                             |
-| `/interview-prep`         | `InterviewPrepPage` | Interview preparation dashboard                        |
-| `/interview/:interviewId` | `InterviewRoomPage` | Voice interview room                                   |
-
----
-
-### Key Components
-
-#### App (`src/App.tsx`)
-
-- Main application component with global state management
-- Manages: `userProfile`, `savedJobs`, `appliedJobs`, `chats`, `isOnboarded`
-- Key interfaces: `UserProfile`, `Job`, `Chat`, `Message`, `SignInData`
-- Functions: `completeOnboarding`, `saveJob`, `unsaveJob`, `applyToJob`, `addChat`, `updateChat`, `deleteChat`, `signOut`
-- `completeOnboarding` accepts optional `SignInData` to populate all state on sign-in
-
-#### OnboardingPage (`src/components/OnboardingPage.tsx`)
-
-- **Three modes**: `'choice'` (sign in vs new user), `'signin'` (email entry), `'onboard'` (resume upload)
-- Sign-in flow: Calls `/api/signIn` → converts DB format to frontend format → passes `SignInData` to `onComplete`
-- Onboarding flow: Upload PDF → calls `/api/onboardFileUpload` → edit fields → calls `/api/confirmOnboardingDetails`
-- Data conversion maps DB job/chat format to frontend `Job` and `Chat` interfaces
-
-#### ChatPage (`src/components/ChatPage.tsx`)
-
-- Modern chat UI with floating input design
-- Messages area with absolute positioning and gradient fade
-- Input has shadow effect (`shadow-lg hover:shadow-xl`) for floating appearance
-- Hidden scrollbars via `scrollbar-hide` CSS class
-- Handles: `createChat`, `getChatMessages`, `sendMessage`
-- Displays job cards inline when returned by AI
-
-#### HomePage (`src/components/HomePage.tsx`)
-
-- Dashboard showing: recent chats, saved jobs, quick action buttons
-- Entry points to chat, interview prep, and profile
-
-#### ProfilePage (`src/components/ProfilePage.tsx`)
-
-- View and edit user profile
-- Calls `/api/updateUserProfile` for changes
-
-#### InterviewPrepPage (`src/components/InterviewPrepPage.tsx`)
-
-- Interview preparation dashboard
-- Lists saved/applied jobs with "Prepare Interview" option
-- Create custom interview modal
-- AI-generated interview objectives
-- Interview history and analytics
-- Interviewer selection with personality traits
-
-#### InterviewRoomPage (`src/components/InterviewRoomPage.tsx`)
-
-- Voice interview room
-- Pre-interview screen with questions preview and instructions
-- Real-time voice conversation with AI interviewer (Retell AI)
-- Live transcript display
-- Timer and progress tracking
-- Tab switch detection and warning
-- Post-interview summary and analytics
-
-#### JobCard (`src/components/JobCard.tsx`)
-
-- Visual card for job listings
-- Actions: Save/Unsave, Apply, Prepare Interview
-
-#### JobDetailModal (`src/components/JobDetailModal.tsx`)
-
-- Detailed job information modal
-
----
-
-### Services
-
-`src/services/api.ts` centralizes all API calls:
-
-#### User & Auth
-
-- `uploadResume(file)`: Upload PDF for parsing
-- `confirmOnboarding(profile)`: Confirm and save profile
-- `signIn(email)`: Email-based sign in (returns full user data)
-- `updateUserProfile(profile)`: Update profile
-
-#### Chat
-
-- `getChatHistory(email)`: Get user's chats
-- `createChat(email)`: Create new chat
-- `sendMessage(email, chatId, message, selectedJobId?, selectedJobData?)`: Send message
-- `getChatMessages(email, chatId)`: Get messages for chat
-- `deleteChat(email, chatId)`: Delete a chat
-
-#### Jobs
-
-- `getSavedJobs(email)`: Get saved jobs
-- `getAppliedJobs(email)`: Get applied jobs
-- `saveJob(request)`: Save a job
-- `unsaveJob(request)`: Remove saved job
-- `applyJob(request)`: Mark as applied
-
-#### Interviews
-
-- `getInterviewers()`: Get available AI interviewers
-- `createInterview(request)`: Create custom interview
-- `createJobInterview(request)`: Create job-specific interview
-- `registerCall(interviewId, email)`: Start voice session
-- `analyzeInterview(interviewId, responseId)`: Get analytics
-- Plus: `getInterviews`, `getInterview`, `updateInterviewResponse`, etc.
-
----
-
-### Styles
-
-#### Global Styles (`src/styles/globals.css`)
-
-- Tailwind CSS v4 theme configuration
-- Custom utility classes:
-
-```css
-@layer utilities {
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
+```javascript
+{
+  "_id": ObjectId,
+  "user_id": ObjectId,
+  "name": "Backend Interview Practice",
+  "objective": "Practice for backend developer role",
+  "interviewer_id": "interviewer_1",
+  "questions": [
+    {
+      "question": "Tell me about yourself",
+      "follow_up_count": 2
+    }
+  ],
+  "job_context": {
+    "job_title": "Backend Developer",
+    "company_name": "Tech Corp"
+  },
+  "created_at": ISODate
 }
 ```
 
-#### Theme Support
+---
 
-- Dark/Light theme via `ThemeProvider` component
-- Toggle with `ThemeToggle` component
-- Respects system preference
+## Frontend Architecture
+
+### File Structure
+
+```
+frontend/src/
+├── main.tsx                   # Entry point
+├── App.tsx                    # Main app with routing
+├── index.css                  # Global styles
+│
+├── context/
+│   └── AuthContext.tsx        # Authentication state
+│
+├── services/
+│   ├── api.ts                 # API client functions
+│   └── auth.ts                # Auth utilities
+│
+├── components/
+│   ├── AuthPage.tsx           # Login/Register
+│   ├── OnboardingPage.tsx     # Resume upload
+│   ├── HomePage.tsx           # Dashboard
+│   ├── ChatPage.tsx           # AI chat
+│   ├── ProfilePage.tsx        # User profile
+│   ├── InterviewPrepPage.tsx  # Interview dashboard
+│   ├── InterviewRoomPage.tsx  # Voice interview
+│   ├── JobCard.tsx            # Job card component
+│   ├── JobDetailModal.tsx     # Job details
+│   ├── theme-provider.tsx     # Theme context
+│   ├── ThemeToggle.tsx        # Dark/light toggle
+│   └── ui/                    # Reusable UI components
+│
+└── styles/
+    └── globals.css            # Tailwind theme config
+```
+
+### Application Routes
+
+| Route                     | Component         | Auth Required | Onboarded Required |
+| ------------------------- | ----------------- | ------------- | ------------------ |
+| `/auth`                   | AuthPage          | No            | No                 |
+| `/`                       | Redirect          | -             | -                  |
+| `/onboarding`             | OnboardingPage    | Yes           | No                 |
+| `/home`                   | HomePage          | Yes           | Yes                |
+| `/chat/:chatId`           | ChatPage          | Yes           | Yes                |
+| `/profile`                | ProfilePage       | Yes           | Yes                |
+| `/interview-prep`         | InterviewPrepPage | Yes           | Yes                |
+| `/interview/:interviewId` | InterviewRoomPage | Yes           | Yes                |
+
+### State Management
+
+The app uses a combination of:
+
+1. **AuthContext**: Global authentication state
+2. **App.tsx State**: User profile, jobs, chats
+3. **localStorage**: Persistence across sessions
+
+```typescript
+// App.tsx state
+const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+const [savedJobs, setSavedJobs] = useState<Job[]>([]);
+const [appliedJobs, setAppliedJobs] = useState<Job[]>([]);
+const [chats, setChats] = useState<Chat[]>([]);
+const [isOnboarded, setIsOnboarded] = useState(() => {
+  // Initialize from localStorage synchronously
+  const stored = localStorage.getItem("isOnboarded");
+  return stored ? JSON.parse(stored) === true : false;
+});
+```
 
 ---
 
-## How Frontend and Backend Work Together
+## Data Flow
 
-### 1. Sign In (Returning Users)
-
-```
-User enters email → POST /api/signIn
-                 → Backend finds user, returns full data
-                 → Frontend converts DB format to state format
-                 → Populates: profile, savedJobs, appliedJobs, chats
-                 → Navigates to /home
-```
-
-### 2. Onboarding (New Users)
+### 1. Authentication Flow
 
 ```
-User uploads PDF → POST /api/onboardFileUpload
-               → Backend parses with Gemini
-               → Frontend shows extracted data for editing
-User confirms  → POST /api/confirmOnboardingDetails
-               → Backend stores user document
-               → Frontend sets profile, navigates to /home
+┌─────────┐     ┌──────────┐     ┌─────────┐     ┌──────────┐
+│ AuthPage│ ──► │ auth.ts  │ ──► │ Backend │ ──► │ MongoDB  │
+│         │ ◄── │ (tokens) │ ◄── │ /auth/* │ ◄── │          │
+└─────────┘     └──────────┘     └─────────┘     └──────────┘
+                     │
+                     ▼
+              ┌──────────────┐
+              │ AuthContext  │ ──► App State
+              │ (user state) │
+              └──────────────┘
 ```
 
-### 3. Chat Session
+### 2. Chat with AI Flow
 
 ```
-User clicks New Chat → POST /api/createChat
-                    → Backend creates context, generates greeting
-                    → Frontend displays chat with initial message
-
-User sends message → POST /api/sendMessage
-                  → Backend builds context, calls Gemini
-                  → Gemini may call search_jobs or get_job_details
-                  → Backend returns response with optional job cards
-                  → Frontend displays message and job cards
+User Message
+     │
+     ▼
+┌──────────────┐     ┌─────────────────────────────────┐
+│ ChatPage.tsx │ ──► │ POST /api/sendMessage           │
+└──────────────┘     └─────────────────────────────────┘
+                                  │
+                                  ▼
+                     ┌─────────────────────────────────┐
+                     │ chat_service.py                 │
+                     │ - Build context (profile, jobs) │
+                     │ - Send to Gemini AI             │
+                     │ - Handle function calls         │
+                     └─────────────────────────────────┘
+                                  │
+           ┌──────────────────────┼──────────────────────┐
+           ▼                      ▼                      ▼
+    ┌─────────────┐       ┌─────────────┐       ┌─────────────┐
+    │ Text Reply  │       │ search_jobs │       │ get_details │
+    └─────────────┘       │ → JSearch   │       │ → JSearch   │
+                          └─────────────┘       └─────────────┘
+                                  │
+                                  ▼
+                     ┌─────────────────────────────────┐
+                     │ Response: message + job cards   │
+                     └─────────────────────────────────┘
+                                  │
+                                  ▼
+                     ┌─────────────────────────────────┐
+                     │ ChatPage displays jobs inline   │
+                     └─────────────────────────────────┘
 ```
 
-### 4. Job Management
+### 3. Interview Flow
 
 ```
-User clicks Save    → POST /api/saveJob → Backend $addToSet
-User clicks Unsave  → POST /api/unsaveJob → Backend $pull
-User clicks Apply   → POST /api/applyJob → Backend adds to applied_jobs
+User Creates Interview
+     │
+     ▼
+┌────────────────────┐     ┌──────────────────────────┐
+│ InterviewPrepPage  │ ──► │ POST /api/createInterview│
+└────────────────────┘     └──────────────────────────┘
+                                      │
+                                      ▼
+                           ┌──────────────────────────┐
+                           │ interview_service.py     │
+                           │ - Generate questions     │
+                           │ - Create interview doc   │
+                           └──────────────────────────┘
+                                      │
+                                      ▼
+                           ┌──────────────────────────┐
+                           │ InterviewRoomPage        │
+                           │ - Register Retell call   │
+                           │ - Voice conversation     │
+                           │ - Get analytics          │
+                           └──────────────────────────┘
 ```
-
-### 5. Interview Prep
-
-```
-User clicks "Prepare Interview" on job card
-  → POST /api/generateInterviewObjective (optional)
-  → Frontend shows interview config modal
-
-User configures and starts
-  → POST /api/createJobInterview or /api/createInterview
-  → Backend generates questions via Gemini
-  → Frontend navigates to interview room
-
-In interview room
-  → POST /api/registerCall → Backend creates Retell session
-  → User conducts voice interview
-  → POST /api/analyzeInterview → Backend analyzes with Gemini
-  → Frontend displays scores and feedback
-```
-
-### 6. Data Persistence
-
-- All user data stored in MongoDB `users` collection
-- Chat history embedded in user document
-- Saved/applied jobs embedded in user document
-- Interviews in separate `interviews` collection
-- Full data restored on sign-in
 
 ---
 
-## Running Locally
+## Security
 
-### Backend (PowerShell)
+### Password Requirements (OWASP)
 
-```powershell
-cd backend
-python -m venv venv
-./venv/Scripts/Activate.ps1
-pip install -r requirements.txt
-# Ensure .env has all required keys
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
-```
+- Minimum 8 characters
+- Maximum 128 characters
+- At least one uppercase letter (A-Z)
+- At least one lowercase letter (a-z)
+- At least one digit (0-9)
+- At least one special character (!@#$%^&\*...)
 
-### Frontend
+### Token Security
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
+- Access tokens expire in 30 minutes
+- Refresh tokens expire in 7 days
+- Tokens are validated on every request
+- Invalid tokens result in 401 Unauthorized
 
-### Build for Production
+### API Security
 
-```bash
-cd frontend
-npm run build
-# Output in frontend/build/
-```
+- All endpoints (except auth) require valid JWT
+- User ID extracted from token, not request body
+- Rate limiting ready (configure in production)
+- CORS configured for allowed origins
+
+### Data Protection
+
+- Passwords never stored in plain text
+- Email addresses masked in logs
+- Sensitive data not logged
+- MongoDB connection uses TLS
 
 ---
 
@@ -649,36 +721,67 @@ npm run build
 
 ### Backend Logging Tags
 
-All database operations include logging tags for quick debugging:
+| Tag              | Description               |
+| ---------------- | ------------------------- |
+| `[AUTH]`         | Authentication operations |
+| `[REGISTER]`     | User registration         |
+| `[LOGIN]`        | Login attempts            |
+| `[TOKEN]`        | Token operations          |
+| `[ONBOARD]`      | Onboarding flow           |
+| `[CREATE_CHAT]`  | Chat creation             |
+| `[SEND_MESSAGE]` | Message handling          |
+| `[CHAT_SERVICE]` | AI chat processing        |
+| `[JSEARCH]`      | Job search API calls      |
+| `[SAVE_JOB]`     | Job operations            |
+| `[INTERVIEW]`    | Interview operations      |
+| `[RETELL]`       | Retell AI calls           |
 
-| Tag                   | Operation                    |
-| --------------------- | ---------------------------- |
-| `[SIGN_IN]`           | Email-based sign in          |
-| `[ONBOARD]`           | User onboarding confirmation |
-| `[CHAT_HISTORY]`      | Fetch chat history           |
-| `[CREATE_CHAT]`       | Create new chat              |
-| `[DELETE_CHAT]`       | Delete chat                  |
-| `[SEND_MESSAGE]`      | Send/receive messages        |
-| `[GET_CHAT_MESSAGES]` | Fetch chat messages          |
-| `[GET_SAVED_JOBS]`    | Fetch saved jobs             |
-| `[GET_APPLIED_JOBS]`  | Fetch applied jobs           |
-| `[SAVE_JOB]`          | Save a job                   |
-| `[UNSAVE_JOB]`        | Unsave a job                 |
-| `[APPLY_JOB]`         | Apply to job                 |
-| `[UPDATE_PROFILE]`    | Update user profile          |
-| `[REGISTER_CALL]`     | Register Retell voice call   |
-| `[RETELL_CALL]`       | Retell API call details      |
+### Common Issues
 
-### Frontend Console Logging
-
-- Sign-in data logging: `[SIGN_IN] Loaded data: { savedJobs, appliedJobs, chats }`
+| Issue                    | Solution                            |
+| ------------------------ | ----------------------------------- |
+| 401 Unauthorized         | Token expired, refresh or re-login  |
+| 422 Validation Error     | Check request body matches schema   |
+| Empty job results        | Broaden search query, check filters |
+| Onboarding redirect loop | Check `is_onboarded` in user doc    |
 
 ---
 
-## Testing
+## Deployment
 
-- Backend includes `test_chatbot_simulation.py` and `test_simulation.py` for basic flows
-- Run with your Python test runner once env is configured
+### Backend
+
+```bash
+# Install production dependencies
+pip install -r requirements.txt
+
+# Run with Uvicorn
+uvicorn main:app --host 0.0.0.0 --port 8000
+
+# Or with Gunicorn (production)
+gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker
+```
+
+### Frontend
+
+```bash
+# Build for production
+npm run build
+
+# Output in frontend/build/
+# Serve with any static file server
+```
+
+### Production Checklist
+
+- [ ] Set secure JWT secret keys (min 32 chars)
+- [ ] Enable HTTPS
+- [ ] Configure CORS for production domains
+- [ ] Set up MongoDB Atlas with proper security
+- [ ] Configure Retell AI webhook URL
+- [ ] Set up monitoring and error tracking
+- [ ] Enable rate limiting
+- [ ] Configure backup strategy
 
 ---
 
@@ -686,48 +789,21 @@ All database operations include logging tags for quick debugging:
 
 ### Guidelines
 
-- **Branching**: Create feature branches from `main`
-- **Coding style**: Follow existing TypeScript/React patterns and Python FastAPI conventions
-- **Commit messages**: Clear, imperative style (e.g., "Add email sign-in feature")
-- **PRs**: Include description, steps to test, and screenshots if UI changes
+1. **Branching**: Create feature branches from `main`
+2. **Code Style**: Follow existing patterns (TypeScript/Python)
+3. **Commits**: Clear, imperative style ("Add feature", not "Added")
+4. **PRs**: Include description, test steps, screenshots if UI changes
 
-### When Adding Features
+### Adding Features
 
-- **Backend**: Update `models.py`, add route in `main.py`, add logging tags, document here
-- **Frontend**: Add/update components, wire APIs in `api.ts`
-- **Interview features**: Update both `interview_service.py` and corresponding frontend
-- **Docs**: Update this `documentation.md` and `README.md`
+1. **Backend**: Update models.py → Add route → Add logging → Document
+2. **Frontend**: Add component → Wire in api.ts → Update App.tsx routes
+3. **Both**: Update this documentation
 
----
+### Code Review Checklist
 
-## Security & Privacy
-
-- Do not commit secrets. Use `.env`
-- Treat resume data and profile fields as sensitive; avoid logging PII
-- Validate inputs server-side and sanitize any external API output
-- Interview transcripts contain user voice data; handle with appropriate privacy measures
-
----
-
-## Deployment Notes
-
-### Backend
-
-- Containerize with Uvicorn/Gunicorn
-- Set environment variables
-- Connect managed MongoDB (MongoDB Atlas recommended)
-- Configure Retell AI webhook URL for production domain
-
-### Frontend
-
-- Build with `npm run build`
-- Serve via static host or CDN
-- Configure backend URL in `api.ts`
-
-### Production Checklist
-
-- Enable HTTPS
-- Tighten CORS for production domains
-- Ensure Retell AI agents are configured
-- Set up monitoring and error tracking
-- Configure rate limiting for API endpoints
+- [ ] No secrets or credentials in code
+- [ ] All endpoints have proper auth
+- [ ] Error handling implemented
+- [ ] Logging added with appropriate tags
+- [ ] Documentation updated
