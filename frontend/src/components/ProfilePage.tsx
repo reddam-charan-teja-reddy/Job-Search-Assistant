@@ -285,14 +285,6 @@ export default function ProfilePage({
                       <User className='w-12 h-12 text-muted-foreground' />
                     )}
                   </div>
-                  {isEditing && (
-                    <button
-                      className='absolute bottom-0 right-0 p-2.5 bg-primary text-primary-foreground rounded-full shadow-lg hover:bg-primary/90 transition-transform active:scale-95'
-                      title="Upload Photo"
-                    >
-                      <Camera className='w-5 h-5' />
-                    </button>
-                  )}
                 </div>
 
                 <div className="flex gap-3">
