@@ -124,6 +124,7 @@ class UserProfileResponse(BaseModel):
     education: Optional[List[str]] = None
     profile_summary: Optional[str] = None
     is_verified: bool = False
+    is_onboarded: bool = False
     created_at: Optional[str] = None
 
 

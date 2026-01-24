@@ -8,8 +8,8 @@ from fastapi import APIRouter, HTTPException, status, Depends, Request
 from bson import ObjectId
 import logging
 
-from db import db
-from auth import (
+from core.db import db
+from core.auth import (
     hash_password,
     verify_password,
     create_access_token,
@@ -23,7 +23,7 @@ from auth import (
     rate_limiter,
     ACCESS_TOKEN_EXPIRE_MINUTES
 )
-from models import (
+from core.models import (
     RegisterRequest, RegisterResponse,
     LoginRequest, LoginResponse,
     RefreshTokenRequest, RefreshTokenResponse,
@@ -417,6 +417,7 @@ async def get_me(current_user: TokenData = Depends(get_current_user)):
             education=user.get("education", []),
             profile_summary=user.get("profile_summary"),
             is_verified=user.get("is_verified", False),
+            is_onboarded=user.get("is_onboarded", False),
             created_at=user.get("created_at")
         )
     

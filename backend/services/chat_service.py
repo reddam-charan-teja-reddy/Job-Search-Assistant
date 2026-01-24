@@ -12,8 +12,8 @@ import google.generativeai as genai
 from google.generativeai import protos
 from bson import ObjectId
 
-from db import db
-from jsearch_client import search_jobs, get_job_details, extract_job_cards_from_response, extract_job_card_data
+from core.db import db
+from clients.jsearch_client import search_jobs, get_job_details, extract_job_cards_from_response, extract_job_card_data
 
 logger = logging.getLogger(__name__)
 

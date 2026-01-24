@@ -7,10 +7,10 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from bson import ObjectId
 import logging
 
-from db import db
-from auth import get_current_user, TokenData, mask_email
-from chat_service import create_new_chat, process_chat_message, get_chat_messages
-from models import (
+from core.db import db
+from core.auth import get_current_user, TokenData, mask_email
+from services.chat_service import create_new_chat, process_chat_message, get_chat_messages
+from core.models import (
     ChatHistoryResponse, ChatHistoryResponseItem,
     ChatMessageRequest, ChatMessageResponse,
     CreateChatRequest, CreateChatResponse

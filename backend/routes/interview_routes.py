@@ -9,9 +9,9 @@ from bson import ObjectId
 import logging
 import google.generativeai as genai
 
-from db import db
-from auth import get_current_user, TokenData, mask_email
-from interview_service import (
+from core.db import db
+from core.auth import get_current_user, TokenData, mask_email
+from services.interview_service import (
     generate_interview_questions,
     create_interview,
     create_job_interview,
@@ -28,7 +28,7 @@ from interview_service import (
     submit_interview_feedback,
     analyze_interview_response
 )
-from models import (
+from core.models import (
     CreateInterviewRequest, CreateJobInterviewRequest, InterviewResponse,
     GetInterviewsResponse, RegisterCallRequest, RegisterCallResponse,
     InterviewResponseData, GetInterviewHistoryResponse,

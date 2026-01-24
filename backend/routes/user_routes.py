@@ -12,10 +12,10 @@ import logging
 import json
 import google.generativeai as genai
 
-from db import db
-from gemini_client import model
-from auth import get_current_user, TokenData, mask_email
-from models import (
+from core.db import db
+from clients.gemini_client import model
+from core.auth import get_current_user, TokenData, mask_email
+from core.models import (
     UserOnboardingResponse,
     UserProfileUpdateRequest
 )

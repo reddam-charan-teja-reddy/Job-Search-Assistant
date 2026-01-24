@@ -7,9 +7,9 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from bson import ObjectId
 import logging
 
-from db import db
-from auth import get_current_user, TokenData, mask_email
-from models import (
+from core.db import db
+from core.auth import get_current_user, TokenData, mask_email
+from core.models import (
     GetAppliedJobsResponse, GetAppliedJobsResponseItem,
     GetSavedJobsResponse, GetSavedJobsResponseItem,
     SaveJobRequest, ApplyJobRequest

@@ -13,7 +13,7 @@ from bson import ObjectId
 import httpx
 import google.generativeai as genai
 
-from db import db
+from core.db import db
 
 logger = logging.getLogger(__name__)
 
