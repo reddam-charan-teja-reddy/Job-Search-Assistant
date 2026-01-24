@@ -1,4 +1,5 @@
 import { UserProfile } from '../App';
+import { authFetch, getAccessToken } from './auth';
 
 // Types for chat API
 export interface JobCardData {
@@ -71,15 +72,35 @@ export interface GetChatMessagesResponse {
   chat_name: string;
 }
 
+// ==================== HELPER FUNCTIONS ====================
+
+const getAuthHeaders = (): Record<string, string> => {
+  const token = getAccessToken();
+  if (token) {
+    return {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    };
+  }
+  return {
+    'Content-Type': 'application/json',
+  };
+};
+
+// ==================== ONBOARDING API FUNCTIONS ====================
+
 export const uploadResume = async (file: File): Promise<UserProfile> => {
+  const token = getAccessToken();
+  const headers: Record<string, string> = {};
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
   const response = await fetch('/api/onboardFileUpload', {
     method: 'POST',
     body: file,
-    headers: {
-      // Content-Type is automatically set by fetch when body is a File/Blob
-      // but for raw binary we might need to be careful.
-      // The backend expects raw bytes, not multipart/form-data.
-    },
+    headers,
   });
 
   if (!response.ok) {
@@ -90,6 +111,9 @@ export const uploadResume = async (file: File): Promise<UserProfile> => {
   return response.json();
 };
 
+/**
+ * @deprecated Use auth service login instead
+ */
 export const signIn = async (email: string): Promise<SignInResponse> => {
   const response = await fetch('/api/signIn', {
     method: 'POST',
@@ -110,7 +134,7 @@ export const signIn = async (email: string): Promise<SignInResponse> => {
 export const confirmOnboarding = async (
   data: UserProfile
 ): Promise<{ message: string; id?: string }> => {
-  const response = await fetch('/api/confirmOnboardingDetails', {
+  const response = await authFetch('/api/confirmOnboardingDetails', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -126,17 +150,15 @@ export const confirmOnboarding = async (
   return response.json();
 };
 
-// Chat API functions
+// ==================== CHAT API FUNCTIONS ====================
 
-export const createChat = async (
-  email: string
-): Promise<CreateChatResponse> => {
-  const response = await fetch('/api/createChat', {
+export const createChat = async (): Promise<CreateChatResponse> => {
+  const response = await authFetch('/api/createChat', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({}),
   });
 
   if (!response.ok) {
@@ -148,19 +170,17 @@ export const createChat = async (
 };
 
 export const sendMessage = async (
-  email: string,
   chatId: string,
   message: string,
   selectedJobId?: string,
   selectedJobData?: JobCardData
 ): Promise<ChatMessageResponse> => {
-  const response = await fetch('/api/sendMessage', {
+  const response = await authFetch('/api/sendMessage', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      email,
       chat_id: chatId,
       message,
       selected_job_id: selectedJobId,
@@ -177,13 +197,10 @@ export const sendMessage = async (
 };
 
 export const getChatMessages = async (
-  email: string,
   chatId: string
 ): Promise<GetChatMessagesResponse> => {
-  const response = await fetch(
-    `/api/getChatMessages?email=${encodeURIComponent(
-      email
-    )}&chat_id=${encodeURIComponent(chatId)}`
+  const response = await authFetch(
+    `/api/getChatMessages?chat_id=${encodeURIComponent(chatId)}`
   );
 
   if (!response.ok) {
@@ -194,14 +211,10 @@ export const getChatMessages = async (
   return response.json();
 };
 
-export const getChatHistory = async (
-  email: string
-): Promise<{
+export const getChatHistory = async (): Promise<{
   chats: Array<{ id: string; chat_name: string; chat_id: string }>;
 }> => {
-  const response = await fetch(
-    `/api/chatHistoryRequest?email=${encodeURIComponent(email)}`
-  );
+  const response = await authFetch('/api/chatHistory');
 
   if (!response.ok) {
     const errorData = await response.json();
@@ -212,21 +225,145 @@ export const getChatHistory = async (
 };
 
 export const deleteChatSession = async (
-  email: string,
   chatId: string
 ): Promise<{ message: string }> => {
-  const response = await fetch(
-    `/api/deleteChatSession?email=${encodeURIComponent(
-      email
-    )}&chat_id=${encodeURIComponent(chatId)}`,
+  const response = await authFetch(
+    `/api/chat/${encodeURIComponent(chatId)}`,
     {
-      method: 'POST',
+      method: 'DELETE',
     }
   );
 
   if (!response.ok) {
     const errorData = await response.json();
     throw new Error(errorData.detail || 'Failed to delete chat session');
+  }
+
+  return response.json();
+};
+
+// ==================== JOB API FUNCTIONS ====================
+
+export const saveJob = async (jobData: {
+  job_id: string;
+  job_title: string;
+  company_name: string;
+  job_link: string;
+}): Promise<{ message: string }> => {
+  const response = await authFetch('/api/saveJob', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(jobData),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to save job');
+  }
+
+  return response.json();
+};
+
+export const unsaveJob = async (jobId: string): Promise<{ message: string }> => {
+  const response = await authFetch(`/api/savedJob/${jobId}`, {
+    method: 'DELETE',
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to unsave job');
+  }
+
+  return response.json();
+};
+
+export const getSavedJobs = async (): Promise<{
+  saved_jobs: Array<{
+    job_id: string;
+    job_title: string;
+    company_name: string;
+    job_link: string;
+  }>;
+}> => {
+  const response = await authFetch('/api/savedJobs');
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to get saved jobs');
+  }
+
+  return response.json();
+};
+
+export const applyJob = async (jobData: {
+  job_id: string;
+  job_title: string;
+  company_name: string;
+  job_link: string;
+}): Promise<{ message: string }> => {
+  const response = await authFetch('/api/applyJob', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(jobData),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to apply to job');
+  }
+
+  return response.json();
+};
+
+export const getAppliedJobs = async (): Promise<{
+  applied_jobs: Array<{
+    job_id: string;
+    job_title: string;
+    company_name: string;
+    job_link: string;
+  }>;
+}> => {
+  const response = await authFetch('/api/appliedJobs');
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to get applied jobs');
+  }
+
+  return response.json();
+};
+
+// ==================== USER PROFILE API FUNCTIONS ====================
+
+export const getUserProfile = async (): Promise<UserProfile> => {
+  const response = await authFetch('/api/userProfile');
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to get user profile');
+  }
+
+  return response.json();
+};
+
+export const updateUserProfile = async (
+  profileData: Partial<UserProfile>
+): Promise<{ message: string }> => {
+  const response = await authFetch('/api/updateProfile', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(profileData),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to update profile');
   }
 
   return response.json();
@@ -305,7 +442,7 @@ export interface RegisterCallResponse {
 // ==================== INTERVIEW API FUNCTIONS ====================
 
 export const getInterviewers = async (): Promise<{ interviewers: Interviewer[] }> => {
-  const response = await fetch('/api/interviewers');
+  const response = await authFetch('/api/interviewers');
   if (!response.ok) {
     const errorData = await response.json();
     throw new Error(errorData.detail || 'Failed to get interviewers');
@@ -314,7 +451,6 @@ export const getInterviewers = async (): Promise<{ interviewers: Interviewer[] }
 };
 
 export const createInterview = async (data: {
-  email: string;
   name: string;
   objective: string;
   interviewer_id?: number;
@@ -325,7 +461,7 @@ export const createInterview = async (data: {
   company_name?: string;
   job_description?: string;
 }): Promise<Interview> => {
-  const response = await fetch('/api/createInterview', {
+  const response = await authFetch('/api/createInterview', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -338,7 +474,6 @@ export const createInterview = async (data: {
 };
 
 export const createJobInterview = async (data: {
-  email: string;
   job_id: string;
   job_title: string;
   company_name: string;
@@ -347,7 +482,7 @@ export const createJobInterview = async (data: {
   question_count?: number;
   time_duration?: string;
 }): Promise<Interview> => {
-  const response = await fetch('/api/createJobInterview', {
+  const response = await authFetch('/api/createJobInterview', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -359,10 +494,8 @@ export const createJobInterview = async (data: {
   return response.json();
 };
 
-export const getUserInterviews = async (
-  email: string
-): Promise<{ interviews: Interview[] }> => {
-  const response = await fetch(`/api/interviews?email=${encodeURIComponent(email)}`);
+export const getUserInterviews = async (): Promise<{ interviews: Interview[] }> => {
+  const response = await authFetch('/api/interviews');
   if (!response.ok) {
     const errorData = await response.json();
     throw new Error(errorData.detail || 'Failed to get interviews');
@@ -371,7 +504,7 @@ export const getUserInterviews = async (
 };
 
 export const getInterview = async (interviewId: string): Promise<Interview> => {
-  const response = await fetch(`/api/interview/${interviewId}`);
+  const response = await authFetch(`/api/interview/${interviewId}`);
   if (!response.ok) {
     const errorData = await response.json();
     throw new Error(errorData.detail || 'Failed to get interview');
@@ -380,7 +513,7 @@ export const getInterview = async (interviewId: string): Promise<Interview> => {
 };
 
 export const deleteInterview = async (interviewId: string): Promise<{ message: string }> => {
-  const response = await fetch(`/api/interview/${interviewId}`, {
+  const response = await authFetch(`/api/interview/${interviewId}`, {
     method: 'DELETE',
   });
   if (!response.ok) {
@@ -394,9 +527,8 @@ export const registerCall = async (data: {
   interview_id: string;
   interviewer_id: number;
   user_name: string;
-  user_email: string;
 }): Promise<RegisterCallResponse> => {
-  const response = await fetch('/api/registerCall', {
+  const response = await authFetch('/api/registerCall', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -414,7 +546,7 @@ export const updateInterviewResponse = async (data: {
   duration?: number;
   tab_switch_count?: number;
 }): Promise<{ message: string }> => {
-  const response = await fetch('/api/updateInterviewResponse', {
+  const response = await authFetch('/api/updateInterviewResponse', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -426,10 +558,8 @@ export const updateInterviewResponse = async (data: {
   return response.json();
 };
 
-export const getInterviewHistory = async (
-  email: string
-): Promise<{ responses: InterviewResponse[] }> => {
-  const response = await fetch(`/api/interviewHistory?email=${encodeURIComponent(email)}`);
+export const getInterviewHistory = async (): Promise<{ responses: InterviewResponse[] }> => {
+  const response = await authFetch('/api/interviewHistory');
   if (!response.ok) {
     const errorData = await response.json();
     throw new Error(errorData.detail || 'Failed to get interview history');
@@ -440,7 +570,7 @@ export const getInterviewHistory = async (
 export const analyzeInterview = async (
   callId: string
 ): Promise<InterviewAnalytics> => {
-  const response = await fetch('/api/analyzeInterview', {
+  const response = await authFetch('/api/analyzeInterview', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ call_id: callId }),
@@ -454,11 +584,10 @@ export const analyzeInterview = async (
 
 export const submitInterviewFeedback = async (data: {
   interview_id: string;
-  email: string;
   feedback: string;
   satisfaction: number;
 }): Promise<{ message: string; feedback_id: string }> => {
-  const response = await fetch('/api/submitInterviewFeedback', {
+  const response = await authFetch('/api/submitInterviewFeedback', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),

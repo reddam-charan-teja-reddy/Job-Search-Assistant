@@ -5,7 +5,6 @@ A full-stack job search application powered by AI that helps users discover job 
 ## 📚 Documentation
 
 - **Full Documentation**: [documentation.md](documentation.md)
-- **Integration Guide**: [INTEGRATION_README.md](INTEGRATION_README.md)
 - **Frontend Guide**: [frontend/README.md](frontend/README.md)
 - **Backend Dependencies**: [backend/requirements.txt](backend/requirements.txt)
 

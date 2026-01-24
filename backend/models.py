@@ -1,10 +1,133 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr, validator
 from typing import List, Optional
+import re
+
 
 class User(BaseModel):
-    """user model for database storage, contains user profile details, contains chat history too, applied jobs, saved jobs etc. will be used after everything is completed"""
-    pass 
+    """User model for database storage."""
+    email: str
+    password_hash: str
+    name: str
+    phone: Optional[str] = None
+    location: Optional[str] = None
+    skills: List[str] = []
+    experience: List[str] = []
+    education: Optional[List[str]] = None
+    profile_summary: Optional[str] = None
+    is_active: bool = True
+    is_verified: bool = False
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
+
+# ==================== AUTHENTICATION MODELS ====================
+
+class RegisterRequest(BaseModel):
+    """Request model for user registration."""
+    email: str
+    password: str
+    confirm_password: str
+    name: str
+    
+    @validator('email')
+    def validate_email(cls, v):
+        # Basic email validation
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, v):
+            raise ValueError('Invalid email format')
+        return v.lower().strip()
+    
+    @validator('confirm_password')
+    def passwords_match(cls, v, values):
+        if 'password' in values and v != values['password']:
+            raise ValueError('Passwords do not match')
+        return v
+    
+    @validator('name')
+    def validate_name(cls, v):
+        if not v or len(v.strip()) < 2:
+            raise ValueError('Name must be at least 2 characters')
+        if len(v) > 100:
+            raise ValueError('Name must be less than 100 characters')
+        return v.strip()
+
+
+class RegisterResponse(BaseModel):
+    """Response model for user registration."""
+    message: str
+    user_id: str
+    email: str
+
+
+class LoginRequest(BaseModel):
+    """Request model for user login."""
+    email: str
+    password: str
+    
+    @validator('email')
+    def normalize_email(cls, v):
+        return v.lower().strip()
+
+
+class LoginResponse(BaseModel):
+    """Response model for successful login."""
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int  # seconds until access token expires
+    user: dict  # User profile data (without sensitive fields)
+
+
+class RefreshTokenRequest(BaseModel):
+    """Request model for token refresh."""
+    refresh_token: str
+
+
+class RefreshTokenResponse(BaseModel):
+    """Response model for token refresh."""
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int
+
+
+class ChangePasswordRequest(BaseModel):
+    """Request model for password change."""
+    current_password: str
+    new_password: str
+    confirm_new_password: str
+    
+    @validator('confirm_new_password')
+    def passwords_match(cls, v, values):
+        if 'new_password' in values and v != values['new_password']:
+            raise ValueError('New passwords do not match')
+        return v
+
+
+class ChangePasswordResponse(BaseModel):
+    """Response model for password change."""
+    message: str
+
+
+class LogoutResponse(BaseModel):
+    """Response model for logout."""
+    message: str
+
+
+class UserProfileResponse(BaseModel):
+    """Response model for user profile (no sensitive data)."""
+    email: str
+    name: str
+    phone: Optional[str] = None
+    location: Optional[str] = None
+    skills: List[str] = []
+    experience: List[str] = []
+    education: Optional[List[str]] = None
+    profile_summary: Optional[str] = None
+    is_verified: bool = False
+    created_at: Optional[str] = None
+
+
+# ==================== ONBOARDING MODELS ====================
 
 class UserOnboardingRequest(BaseModel):
     """User uploads his resume via the frontend in pdf file or docx file format."""
@@ -106,7 +229,7 @@ class GetSavedJobsResponse(BaseModel):
 
 class SaveJobRequest(BaseModel):
     """Request model to save a job for a user."""
-    email: str
+    email: Optional[str] = None  # Optional - user identified via JWT token
     job_id: str
     job_title: str
     company_name: str
@@ -114,7 +237,7 @@ class SaveJobRequest(BaseModel):
 
 class ApplyJobRequest(BaseModel):
     """Request model to apply to a job for a user."""
-    email: str
+    email: Optional[str] = None  # Optional - user identified via JWT token
     job_id: str
     job_title: str
     company_name: str
@@ -122,7 +245,7 @@ class ApplyJobRequest(BaseModel):
 
 class UserProfileUpdateRequest(BaseModel):
     """Request model to update user profile details."""
-    email: str
+    email: Optional[str] = None  # Optional - user identified via JWT token
     name: Optional[str] = None
     phone: Optional[str] = None
     location: Optional[str] = None
@@ -137,7 +260,7 @@ class UserProfileUpdateRequest(BaseModel):
 
 class ChatMessageRequest(BaseModel):
     """Request model for sending a chat message."""
-    email: str
+    email: Optional[str] = None  # Optional - user identified via JWT token
     chat_id: str
     message: str
     selected_job_id: Optional[str] = None  # Optional job ID when user selects a job
@@ -153,7 +276,7 @@ class ChatMessageResponse(BaseModel):
 
 class CreateChatRequest(BaseModel):
     """Request model to create a new chat session."""
-    email: str
+    email: Optional[str] = None  # Optional - user identified via JWT token
 
 
 class CreateChatResponse(BaseModel):
@@ -172,7 +295,7 @@ class ChatContext(BaseModel):
 
 class GetChatMessagesRequest(BaseModel):
     """Request model to get messages for a specific chat."""
-    email: str
+    email: Optional[str] = None  # Optional - user identified via JWT token
     chat_id: str
 
 
@@ -223,7 +346,7 @@ class InterviewerInfo(BaseModel):
 
 class CreateInterviewRequest(BaseModel):
     """Request model to create a new interview."""
-    email: str
+    email: Optional[str] = None  # Optional - user identified via JWT token
     name: str
     objective: str
     interviewer_id: int = 1
@@ -238,7 +361,7 @@ class CreateInterviewRequest(BaseModel):
 
 class CreateJobInterviewRequest(BaseModel):
     """Request model to create an interview for a specific job."""
-    email: str
+    email: Optional[str] = None  # Optional - user identified via JWT token
     job_id: str
     job_title: str
     company_name: str
@@ -277,7 +400,7 @@ class RegisterCallRequest(BaseModel):
     interview_id: str
     interviewer_id: int
     user_name: str
-    user_email: str
+    user_email: Optional[str] = None  # Optional - user identified via JWT token
     # Dynamic variables for Retell LLM
     interview_name: Optional[str] = None
     interview_questions: Optional[str] = None
@@ -293,7 +416,7 @@ class CreateInterviewResponseRequest(BaseModel):
     """Request model to create an interview response record."""
     interview_id: str
     name: str
-    email: str
+    email: Optional[str] = None  # Optional - user identified via JWT token
     call_id: str
 
 
@@ -323,7 +446,7 @@ class GetInterviewHistoryResponse(BaseModel):
 class SubmitFeedbackRequest(BaseModel):
     """Request model to submit interview feedback."""
     interview_id: str
-    email: str
+    email: Optional[str] = None  # Optional - user identified via JWT token
     feedback: str
     satisfaction: int  # 1-5 rating
 

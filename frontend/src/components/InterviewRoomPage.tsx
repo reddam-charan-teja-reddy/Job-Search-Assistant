@@ -204,7 +204,6 @@ export default function InterviewRoomPage({ userProfile }: InterviewRoomPageProp
         interview_id: interview.id,
         interviewer_id: interview.interviewer_id,
         user_name: userProfile.name,
-        user_email: userProfile.email,
       });
 
       setCallId(callResponse.call_id);

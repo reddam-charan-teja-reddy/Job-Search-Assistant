@@ -48,10 +48,12 @@ SYSTEM_PROMPT = """You are JobBot AI, a highly skilled and professional career a
 - When analyzing job fit, compare against their actual qualifications
 
 ## JOB SEARCH BEHAVIOR:
-- **Default country is INDIA (in)** - always use country='in' unless user specifies otherwise
-- Keep search queries SIMPLE - just the role/title
-- Don't over-filter - use minimal parameters for more results
-- When jobs are found, give a brief personalized analysis of fit based on user's profile
+- **Default country is INDIA (in)** - use country='in' unless user asks for another country
+- Keep search queries SIMPLE - just the job title/role (e.g., 'Backend Developer', 'ML Engineer')
+- **DO NOT add 'junior', 'entry level', 'fresher' to queries** - this limits results too much
+- **LEAVE most filters EMPTY** - only set filters when user explicitly requests them
+- Use date_posted='month' for more results (not 'week')
+- After getting results, analyze which jobs match the user's experience level and mention it
 
 ## WHEN A JOB IS SELECTED:
 - Analyze how well it matches the user's skills
@@ -74,13 +76,13 @@ def get_search_jobs_function():
     """Create the search_jobs function declaration using protos."""
     return protos.FunctionDeclaration(
         name="search_jobs",
-        description="Search for job listings in India by default. Keep queries SIMPLE - just the job title/role. Only add filters when user EXPLICITLY requests them.",
+        description="Search for job listings. Keep the query SIMPLE - just the job title/role. Do NOT add experience qualifiers like 'junior' or 'entry level' to the query as it limits results. Leave optional filters empty for broader results.",
         parameters=protos.Schema(
             type=protos.Type.OBJECT,
             properties={
                 "query": protos.Schema(
                     type=protos.Type.STRING,
-                    description="SIMPLE job title or role only. Examples: 'software developer', 'frontend developer', 'data scientist'. Do NOT add location to query - use country parameter instead."
+                    description="REQUIRED: Simple job title to search (e.g., 'Backend Developer', 'Data Analyst', 'ML Engineer'). Keep it short and simple. Do NOT add qualifiers like 'junior', 'senior', 'entry level' - these limit results too much."
                 ),
                 "country": protos.Schema(
                     type=protos.Type.STRING,
@@ -88,15 +90,15 @@ def get_search_jobs_function():
                 ),
                 "date_posted": protos.Schema(
                     type=protos.Type.STRING,
-                    description="Job posting age filter. Options: 'all', 'today', '3days', 'week', 'month'. Default is 'week' for fresh listings."
+                    description="OPTIONAL: Job posting age. Options: 'all', 'today', '3days', 'week', 'month'. Use 'month' or 'all' for more results. Leave empty if unsure."
                 ),
                 "employment_types": protos.Schema(
                     type=protos.Type.STRING,
-                    description="ONLY use if user explicitly asks. Options: FULLTIME, CONTRACTOR, PARTTIME, INTERN"
+                    description="OPTIONAL: Job type filter. Options: FULLTIME, CONTRACTOR, PARTTIME, INTERN. Leave empty for all types."
                 ),
                 "job_requirements": protos.Schema(
                     type=protos.Type.STRING,
-                    description="ONLY use if user explicitly asks for experience level. Options: under_3_years_experience, more_than_3_years_experience, no_experience, no_degree"
+                    description="OPTIONAL: Experience filter. LEAVE EMPTY for more results. Only use if user specifically asks for junior or senior roles."
                 ),
                 "work_from_home": protos.Schema(
                     type=protos.Type.BOOLEAN,
@@ -115,17 +117,17 @@ def get_job_details_function():
     """Create the get_job_details function declaration using protos."""
     return protos.FunctionDeclaration(
         name="get_job_details",
-        description="Get detailed information about a specific job by its ID. Use this when a user selects a job or asks for more details about a particular position.",
+        description="Get detailed information about a specific job. IMPORTANT: You MUST use the actual job_id from the search results (the value in [job_id: xxx] brackets), NOT the job title.",
         parameters=protos.Schema(
             type=protos.Type.OBJECT,
             properties={
                 "job_id": protos.Schema(
                     type=protos.Type.STRING,
-                    description="The unique identifier of the job to get details for"
+                    description="The ACTUAL job_id from search results (e.g., 'eyJqb2JfdGl0bGUiOi...'). Do NOT use the job title - use the exact job_id value shown in [job_id: xxx] in the search results."
                 ),
                 "country": protos.Schema(
                     type=protos.Type.STRING,
-                    description="ISO-3166-1 alpha-2 country code. Default is 'us'."
+                    description="ISO-3166-1 alpha-2 country code. Default is 'in' for India."
                 )
             },
             required=["job_id"]
@@ -287,9 +289,46 @@ def build_context_prompt(chat_context: dict, current_message: str, selected_job_
             raw_profile = permanent_context.get("raw_profile", {})
             ai_summary = permanent_context.get("ai_summary", "")
             
+            # Determine experience level from profile
+            experience_list = raw_profile.get("experience", [])
+            experience_level = "entry-level/fresher"
+            job_requirements_hint = "under_3_years_experience"
+            
+            # Try to infer years of experience from experience entries
+            total_years = 0
+            has_internship_only = True
+            for exp in experience_list:
+                exp_lower = exp.lower() if isinstance(exp, str) else ""
+                if "intern" not in exp_lower and ("engineer" in exp_lower or "developer" in exp_lower or "analyst" in exp_lower or "manager" in exp_lower):
+                    has_internship_only = False
+                # Look for year patterns like "2022-2024" or "2 years"
+                import re
+                year_matches = re.findall(r'(\d{4})\s*[-–to]+\s*(\d{4}|present|current)', exp_lower)
+                if year_matches:
+                    for start, end in year_matches:
+                        end_year = 2026 if end in ['present', 'current'] else int(end)
+                        total_years += end_year - int(start)
+                year_duration = re.search(r'(\d+)\s*(?:year|yr)', exp_lower)
+                if year_duration:
+                    total_years += int(year_duration.group(1))
+            
+            if total_years >= 5:
+                experience_level = "senior (5+ years)"
+                job_requirements_hint = "more_than_3_years_experience"
+            elif total_years >= 3:
+                experience_level = "mid-level (3-5 years)"
+                job_requirements_hint = "more_than_3_years_experience"
+            elif total_years >= 1 or (experience_list and not has_internship_only):
+                experience_level = "junior (1-3 years)"
+                job_requirements_hint = "under_3_years_experience"
+            else:
+                experience_level = "entry-level/fresher"
+                job_requirements_hint = "under_3_years_experience"
+            
             # Build comprehensive profile section
             profile_section = "[USER PROFILE - ALWAYS REFERENCE THIS FOR PERSONALIZED ADVICE]\n"
             profile_section += f"**Summary:** {ai_summary}\n\n"
+            profile_section += f"**EXPERIENCE LEVEL: {experience_level.upper()}** (Use job_requirements='{job_requirements_hint}' when searching)\n\n"
             
             if raw_profile.get("name"):
                 profile_section += f"**Name:** {raw_profile['name']}\n"
@@ -324,9 +363,11 @@ def build_context_prompt(chat_context: dict, current_message: str, selected_job_
             # Old string format - backwards compatibility
             parts.append(f"[USER PROFILE]\n{permanent_context}\n")
     
+    
     # Add PERSISTED selected job context if applicable
     selected_job = chat_context.get("selected_job")
     if selected_job:
+        job_id = selected_job.get('job_id', 'Unknown')
         job_title = selected_job.get('job_title', 'Unknown Position')
         employer_name = selected_job.get('employer_name', 'Unknown Company')
         job_description = selected_job.get('job_description', '')
@@ -335,6 +376,7 @@ def build_context_prompt(chat_context: dict, current_message: str, selected_job_
         job_highlights = selected_job.get('job_highlights', {})
         
         job_context = f"""[CURRENTLY SELECTED JOB - Answer all questions in context of this job]
+**job_id:** {job_id}
 **Position:** {job_title}
 **Company:** {employer_name}
 **Location:** {job_location}
@@ -349,6 +391,7 @@ def build_context_prompt(chat_context: dict, current_message: str, selected_job_
             if job_highlights.get('Responsibilities'):
                 job_context += f"\n**Key Responsibilities:**\n" + "\n".join(f"  • {r}" for r in job_highlights['Responsibilities'][:5])
         
+        job_context += f"\n\n**IMPORTANT:** If you need to call get_job_details for this job, use job_id='{job_id}'"
         parts.append(job_context + "\n")
     
     # Add conversation summary
@@ -375,6 +418,7 @@ async def execute_function_call(function_name: str, function_args: dict) -> Tupl
     Args:
         function_name: Name of the function to execute
         function_args: Arguments for the function
+        user_skills: Optional list of user skills to infer query from if empty
     
     Returns:
         Tuple of (function result, job cards if applicable)
@@ -382,38 +426,52 @@ async def execute_function_call(function_name: str, function_args: dict) -> Tupl
     job_cards = None
     
     if function_name == "search_jobs":
+        query = function_args.get("query", "").strip()
+        
+        # If query is empty, return an error asking for clarification
+        if not query:
+            return {
+                "status": "error",
+                "message": "Search query cannot be empty. Please specify what type of job you're looking for (e.g., 'software developer', 'data analyst', 'marketing manager')."
+            }, None
+        
         # Default to India (in) for job searches
         result = await search_jobs(
-            query=function_args.get("query", ""),
-            num_pages=min(function_args.get("num_pages", 2), 3),  # Default 2 pages, max 3
+            query=query,
+            num_pages=min(function_args.get("num_pages", 3), 5),  # Default 3 pages for more results
             country=function_args.get("country", "in"),  # Default to India
-            date_posted=function_args.get("date_posted", "week"),  # Default to last week
+            date_posted=function_args.get("date_posted", "month"),  # Default to last month for more results
             employment_types=function_args.get("employment_types"),
             job_requirements=function_args.get("job_requirements"),
             work_from_home=function_args.get("work_from_home", False)
         )
-        print(f"[CHAT_SERVICE] Job search executed - Country: {function_args.get('country', 'in')}, Query: {function_args.get('query')}")
+        print(f"[CHAT_SERVICE] Job search executed - Country: {function_args.get('country', 'in')}, Query: {query}")
         
         # Extract job cards for frontend
         job_cards = extract_job_cards_from_response(result)
         
-        # Create a summary for the model
+        # Create a summary for the model - INCLUDE JOB IDs so Gemini can reference them
         jobs_data = result.get("data", [])
         if jobs_data:
             job_summaries = []
             for job in jobs_data[:10]:  # Limit to 10 jobs for context
-                summary = f"- {job.get('job_title')} at {job.get('employer_name')} ({job.get('job_location', 'Location not specified')})"
+                job_id = job.get('job_id', '')
+                # Use bullet points, NOT numbered lists to avoid confusion
+                summary = f"• **{job.get('job_title')}** at {job.get('employer_name')} ({job.get('job_location', 'Location not specified')})"
                 if job.get('job_salary') or (job.get('job_min_salary') and job.get('job_max_salary')):
                     if job.get('job_min_salary') and job.get('job_max_salary'):
                         summary += f" - ${job['job_min_salary']:,.0f}-${job['job_max_salary']:,.0f}"
                     elif job.get('job_salary'):
                         summary += f" - {job['job_salary']}"
+                # Put job_id on its own line for clarity
+                summary += f"\n  → job_id: {job_id}"
                 job_summaries.append(summary)
             
             return {
                 "status": "success",
                 "total_jobs_found": len(jobs_data),
-                "jobs_summary": "\n".join(job_summaries)
+                "jobs_summary": "\n\n".join(job_summaries),
+                "CRITICAL_NOTE": "When calling get_job_details, you MUST use the exact job_id string shown above (e.g., 'eyJqb2...' or '9sRWYG...'). NEVER use numbers like '1' or '2' as job_id."
             }, job_cards
         else:
             return {
@@ -422,8 +480,18 @@ async def execute_function_call(function_name: str, function_args: dict) -> Tupl
             }, []
     
     elif function_name == "get_job_details":
+        job_id = function_args.get("job_id", "")
+        
+        # Validate job_id - it should NOT be a simple number like "1", "2", etc.
+        if not job_id or job_id.isdigit() or len(job_id) < 10:
+            print(f"[CHAT_SERVICE] ERROR: Invalid job_id received: '{job_id}' - this looks like a list number, not an actual job_id")
+            return {
+                "status": "error",
+                "message": f"Invalid job_id: '{job_id}'. The job_id should be a long string like 'eyJqb2...' or '9sRWYG...', NOT a number. Please use the exact job_id from the search results."
+            }, None
+        
         result = await get_job_details(
-            job_id=function_args.get("job_id", ""),
+            job_id=job_id,
             country=function_args.get("country", "in")  # Default to India
         )
         

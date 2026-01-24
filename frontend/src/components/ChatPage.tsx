@@ -97,7 +97,7 @@ export default function ChatPage({
             setCurrentChat(existingChat);
             setActualChatId(chatId);
             try {
-              const chatData = await getChatMessages(userEmail, chatId);
+              const chatData = await getChatMessages(chatId);
               const messages: Message[] = chatData.messages.map(
                 (msg, index) => ({
                   id: `msg-${index}`,
@@ -117,7 +117,7 @@ export default function ChatPage({
             }
           } else {
             try {
-              const chatData = await getChatMessages(userEmail, chatId);
+              const chatData = await getChatMessages(chatId);
               const messages: Message[] = chatData.messages.map(
                 (msg, index) => ({
                   id: `msg-${index}`,
@@ -137,7 +137,7 @@ export default function ChatPage({
               addChat(newChat);
             } catch (err) {
               console.log('Chat not found, creating new chat');
-              const result = await createChat(userEmail);
+              const result = await createChat();
               const newChat: Chat = {
                 id: result.chat_id,
                 title: result.chat_name,
@@ -158,7 +158,7 @@ export default function ChatPage({
             }
           }
         } else {
-          const result = await createChat(userEmail);
+          const result = await createChat();
           const newChat: Chat = {
             id: result.chat_id,
             title: result.chat_name,
@@ -239,7 +239,6 @@ export default function ChatPage({
 
     try {
       const response = await sendMessage(
-        userEmail,
         actualChatId,
         messageText,
         jobIdToSend,

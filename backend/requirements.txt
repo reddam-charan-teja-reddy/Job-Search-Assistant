@@ -2,7 +2,7 @@ fastapi
 uvicorn 
 requests
 motor
-pydantic
+pydantic[email]
 python-dotenv
 google-generativeai
 jsonschema
@@ -11,3 +11,8 @@ PyPDF2
 python-multipart
 aiohttp
 httpx
+
+# Authentication & Security
+passlib[bcrypt]
+python-jose[cryptography]
+bcrypt

@@ -12,7 +12,9 @@ import ChatPage from './components/ChatPage';
 import ProfilePage from './components/ProfilePage';
 import InterviewPrepPage from './components/InterviewPrepPage';
 import InterviewRoomPage from './components/InterviewRoomPage';
+import AuthPage from './components/AuthPage';
 import { ThemeProvider } from './components/theme-provider';
+import { AuthProvider, useAuth } from './context/AuthContext';
 
 export interface UserProfile {
   name: string;
@@ -71,36 +73,98 @@ export interface SignInData {
   chats?: Chat[];
 }
 
-function App() {
+// Protected route wrapper
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+// Main App content with auth
+function AppContent() {
+  const { user, isAuthenticated, isLoading: authLoading, logout: authContextLogout } = useAuth();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [savedJobs, setSavedJobs] = useState<Job[]>([]);
   const [appliedJobs, setAppliedJobs] = useState<Job[]>([]);
   const [chats, setChats] = useState<Chat[]>([]);
-  const [isOnboarded, setIsOnboarded] = useState(false);
+  // Initialize isOnboarded from localStorage synchronously to prevent redirect flash
+  const [isOnboarded, setIsOnboarded] = useState(() => {
+    try {
+      const stored = localStorage.getItem('isOnboarded');
+      return stored ? JSON.parse(stored) === true : false;
+    } catch {
+      return false;
+    }
+  });
+
+  // Sync user profile from auth context
+  useEffect(() => {
+    if (user) {
+      // Map auth user to UserProfile
+      const profileFromAuth: UserProfile = {
+        name: user.name,
+        email: user.email,
+        phone: user.phone || '',
+        location: user.location || '',
+        skills: user.skills || [],
+        experience: user.experience || [],
+        profile_summary: user.profile_summary || '',
+        resumeUploaded: user.is_onboarded,
+        education: user.education,
+      };
+      setUserProfile(profileFromAuth);
+      // Only mark as onboarded if user has completed onboarding (uploaded resume)
+      setIsOnboarded(user.is_onboarded);
+      localStorage.setItem('userProfile', JSON.stringify(profileFromAuth));
+      localStorage.setItem('isOnboarded', JSON.stringify(user.is_onboarded));
+    }
+  }, [user]);
 
   useEffect(() => {
-    // Load data from localStorage
-    const storedProfile = localStorage.getItem('userProfile');
-    const storedSavedJobs = localStorage.getItem('savedJobs');
-    const storedAppliedJobs = localStorage.getItem('appliedJobs');
-    const storedChats = localStorage.getItem('chats');
-    const storedOnboarded = localStorage.getItem('isOnboarded');
+    // Load data from localStorage with safe parsing
+    const safeParse = <T,>(key: string): T | null => {
+      const value = localStorage.getItem(key);
+      if (!value || value === 'undefined') return null;
+      try {
+        return JSON.parse(value);
+      } catch {
+        localStorage.removeItem(key);
+        return null;
+      }
+    };
 
-    if (storedProfile) setUserProfile(JSON.parse(storedProfile));
-    if (storedSavedJobs) setSavedJobs(JSON.parse(storedSavedJobs));
-    if (storedAppliedJobs) setAppliedJobs(JSON.parse(storedAppliedJobs));
+    const storedProfile = safeParse<UserProfile>('userProfile');
+    const storedSavedJobs = safeParse<Job[]>('savedJobs');
+    const storedAppliedJobs = safeParse<Job[]>('appliedJobs');
+    const storedChats = safeParse<Chat[]>('chats');
+    const storedOnboarded = safeParse<boolean>('isOnboarded');
+
+    if (storedProfile) setUserProfile(storedProfile);
+    if (storedSavedJobs) setSavedJobs(storedSavedJobs);
+    if (storedAppliedJobs) setAppliedJobs(storedAppliedJobs);
     if (storedChats) {
-      const parsedChats = JSON.parse(storedChats);
       // Convert timestamp strings back to Date objects
-      parsedChats.forEach((chat: Chat) => {
+      storedChats.forEach((chat: Chat) => {
         chat.timestamp = new Date(chat.timestamp);
         chat.messages.forEach((msg: Message) => {
           msg.timestamp = new Date(msg.timestamp);
         });
       });
-      setChats(parsedChats);
+      setChats(storedChats);
     }
-    if (storedOnboarded) setIsOnboarded(JSON.parse(storedOnboarded));
+    if (storedOnboarded !== null) setIsOnboarded(storedOnboarded);
   }, []);
 
   const completeOnboarding = (profile: UserProfile, signInData?: SignInData) => {
@@ -169,7 +233,12 @@ function App() {
     localStorage.setItem('chats', JSON.stringify(filteredChats));
   };
 
-  const signOut = () => {
+  const signOut = async () => {
+    try {
+      await authContextLogout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
     setUserProfile(null);
     setIsOnboarded(false);
     setSavedJobs([]);
@@ -178,26 +247,60 @@ function App() {
     localStorage.clear();
   };
 
+  // Show loading while auth state is being determined
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
   return (
-    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-      <Router>
-        <div className='min-h-screen bg-background text-foreground'>
-          <Toaster position='top-center' richColors />
-          <Routes>
-            <Route
-              path='/'
-              element={
-                !isOnboarded ? (
-                  <OnboardingPage onComplete={completeOnboarding} />
-                ) : (
+    <Router>
+      <div className='min-h-screen bg-background text-foreground'>
+        <Toaster position='top-center' richColors />
+        <Routes>
+          {/* Auth routes */}
+          <Route
+            path='/auth'
+            element={
+              isAuthenticated ? (
+                <Navigate to='/home' replace />
+              ) : (
+                <AuthPage />
+              )
+            }
+          />
+          <Route
+            path='/'
+            element={
+              !isAuthenticated ? (
+                <Navigate to='/auth' replace />
+              ) : !isOnboarded ? (
+                <OnboardingPage onComplete={completeOnboarding} />
+              ) : (
+                <Navigate to='/home' replace />
+              )
+            }
+          />
+          <Route
+            path='/onboarding'
+            element={
+              <ProtectedRoute>
+                {isOnboarded ? (
                   <Navigate to='/home' replace />
-                )
-              }
-            />
-            <Route
-              path='/home'
-              element={
-                isOnboarded ? (
+                ) : (
+                  <OnboardingPage onComplete={completeOnboarding} />
+                )}
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path='/home'
+            element={
+              <ProtectedRoute>
+                {isOnboarded ? (
                   <HomePage
                     savedJobs={savedJobs}
                     appliedJobs={appliedJobs}
@@ -208,14 +311,16 @@ function App() {
                     deleteChat={deleteChat}
                   />
                 ) : (
-                  <Navigate to='/' replace />
-                )
-              }
-            />
-            <Route
-              path='/chat/:chatId?'
-              element={
-                isOnboarded && userProfile ? (
+                  <Navigate to='/onboarding' replace />
+                )}
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path='/chat/:chatId?'
+            element={
+              <ProtectedRoute>
+                {isOnboarded && userProfile ? (
                   <ChatPage
                     chats={chats}
                     addChat={addChat}
@@ -228,56 +333,81 @@ function App() {
                     userEmail={userProfile.email}
                   />
                 ) : (
-                  <Navigate to='/' replace />
-                )
-              }
-            />
-            <Route
-              path='/profile'
-              element={
-                isOnboarded && userProfile ? (
+                  <Navigate to='/onboarding' replace />
+                )}
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path='/profile'
+            element={
+              <ProtectedRoute>
+                {isOnboarded && userProfile ? (
                   <ProfilePage
                     userProfile={userProfile}
                     updateProfile={updateProfile}
                     signOut={signOut}
                   />
                 ) : (
-                  <Navigate to='/' replace />
-                )
-              }
-            />
-            {/* Interview Prep Routes */}
-            <Route
-              path='/interview-prep'
-              element={
-                isOnboarded && userProfile ? (
+                  <Navigate to='/onboarding' replace />
+                )}
+              </ProtectedRoute>
+            }
+          />
+          {/* Interview Prep Routes */}
+          <Route
+            path='/interview-prep'
+            element={
+              <ProtectedRoute>
+                {isOnboarded && userProfile ? (
                   <InterviewPrepPage
                     savedJobs={savedJobs}
                     appliedJobs={appliedJobs}
                     userProfile={userProfile}
                   />
                 ) : (
-                  <Navigate to='/' replace />
-                )
-              }
-            />
-            <Route
-              path='/interview/:interviewId'
-              element={
-                isOnboarded && userProfile ? (
+                  <Navigate to='/onboarding' replace />
+                )}
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path='/interview/:interviewId'
+            element={
+              <ProtectedRoute>
+                {isOnboarded && userProfile ? (
                   <InterviewRoomPage userProfile={userProfile} />
                 ) : (
-                  <Navigate to='/' replace />
-                )
-              }
-            />
-            {/* Redirect /dashboard to /home for compatibility */}
-            <Route path='/dashboard' element={<Navigate to='/home' replace />} />
-            {/* Catch all - redirect unknown routes to home */}
-            <Route path='*' element={<Navigate to='/home' replace />} />
-          </Routes>
-        </div>
-      </Router>
+                  <Navigate to='/onboarding' replace />
+                )}
+              </ProtectedRoute>
+            }
+          />
+          {/* Redirect /dashboard to /home for compatibility */}
+          <Route path='/dashboard' element={<Navigate to='/home' replace />} />
+          {/* Catch all - redirect unknown routes based on auth status */}
+          <Route
+            path='*'
+            element={
+              isAuthenticated ? (
+                <Navigate to='/home' replace />
+              ) : (
+                <Navigate to='/auth' replace />
+              )
+            }
+          />
+        </Routes>
+      </div>
+    </Router>
+  );
+}
+
+function App() {
+  return (
+    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </ThemeProvider>
   );
 }
