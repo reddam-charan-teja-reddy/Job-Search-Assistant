@@ -11,6 +11,8 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 from bson import ObjectId
 import httpx
+# dotenv for environment variables
+
 import google.generativeai as genai
 
 from core.db import db
@@ -32,7 +34,7 @@ RETELL_API_URL = "https://api.retellai.com"
 DEFAULT_INTERVIEWERS = [
     {
         "id": 1,
-        "agent_id": os.getenv("RETELL_AGENT_ID_1", "agent_ed1114a2461435a6cb630cd771"),
+        "agent_id": os.getenv("RETELL_AGENT_ID_1", ""),
         "name": "Explorer Lisa",
         "description": "Empathetic interviewer who explores your experiences in depth with thoughtful follow-ups",
         "image": "/interviewers/Lisa.png",
@@ -44,7 +46,7 @@ DEFAULT_INTERVIEWERS = [
     },
     {
         "id": 2,
-        "agent_id": os.getenv("RETELL_AGENT_ID_2", "agent_d537dae23eb87a23bf6a2bbfc8"),
+        "agent_id": os.getenv("RETELL_AGENT_ID_2", ""),
         "name": "Empathetic Bob",
         "description": "Friendly and understanding interviewer who creates a comfortable interview atmosphere",
         "image": "/interviewers/Bob.png",
