@@ -313,6 +313,16 @@ See [documentation.md](documentation.md) for detailed guidelines.
 
 ---
 
+## Project Made By:
+
+1. Reddam Charan Teja Reddy
+2. Damerla Anand
+3. Javvaji Jagannadh Naga Sai Kumar
+4. Shaik Riyaaz Ali
+5. Tautik Venkata Siva Sai Penumudi
+
+---
+
 ## 📄 License
 
 Proprietary - confirm licensing before redistribution.
