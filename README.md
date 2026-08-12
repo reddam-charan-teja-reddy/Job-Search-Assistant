@@ -1,5 +1,7 @@
 # Job Search Assistant with AI Chatbot & Mock Interviews
 
+Production Link: https://job-search-assistant-frontend.vercel.app/
+
 A full-stack job search application powered by AI that helps users discover job opportunities, manage applications, and prepare for interviews. Features an intelligent chatbot for job discovery, voice-based AI mock interviews, and comprehensive user profile management.
 
 ## 📚 Documentation
