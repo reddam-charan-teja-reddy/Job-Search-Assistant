@@ -40,3 +40,4 @@ venv.bak/
 .DS_Store
 Thumbs.db
 BACKEND_INTERVIEW_GUIDE.md
+test.py
