@@ -81,7 +81,31 @@ export const isAuthenticated = (): boolean => {
 
 // ==================== AUTH API CALLS ====================
 
-const API_BASE = '/api/auth';
+export const getApiBaseUrl = (): string => {
+  const envUrl = (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL;
+  if (envUrl) {
+    return envUrl.endsWith('/') ? envUrl.slice(0, -1) : envUrl;
+  }
+  return '';
+};
+
+export const API_BASE_URL = getApiBaseUrl();
+const API_BASE = `${API_BASE_URL}/api/auth`;
+
+/**
+ * Safely extracts error detail from API response (handles HTML error pages gracefully)
+ */
+export const getErrorMessage = async (
+  response: Response,
+  defaultMsg: string
+): Promise<string> => {
+  try {
+    const errorData = await response.json();
+    return errorData.detail || errorData.message || defaultMsg;
+  } catch {
+    return `${defaultMsg} (HTTP ${response.status}: ${response.statusText || 'Error'})`;
+  }
+};
 
 export const register = async (
   email: string,
@@ -103,8 +127,8 @@ export const register = async (
   });
 
   if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || 'Registration failed');
+    const errorMessage = await getErrorMessage(response, 'Registration failed');
+    throw new Error(errorMessage);
   }
 
   return response.json();
@@ -123,8 +147,8 @@ export const login = async (
   });
 
   if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || 'Login failed');
+    const errorMessage = await getErrorMessage(response, 'Login failed');
+    throw new Error(errorMessage);
   }
 
   const data: LoginResponse = await response.json();
@@ -213,8 +237,8 @@ export const changePassword = async (
   });
 
   if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || 'Password change failed');
+    const errorMessage = await getErrorMessage(response, 'Password change failed');
+    throw new Error(errorMessage);
   }
 
   return response.json();
@@ -295,6 +319,11 @@ export const authFetch = async (
     throw new Error('Not authenticated');
   }
 
+  const fullUrl =
+    url.startsWith('http://') || url.startsWith('https://')
+      ? url
+      : `${API_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+
   const authOptions: RequestInit = {
     ...options,
     headers: {
@@ -303,7 +332,7 @@ export const authFetch = async (
     },
   };
 
-  let response = await fetch(url, authOptions);
+  let response = await fetch(fullUrl, authOptions);
 
   // If unauthorized, try to refresh token and retry
   if (response.status === 401) {
@@ -314,7 +343,7 @@ export const authFetch = async (
         ...authOptions.headers,
         'Authorization': `Bearer ${newToken}`,
       };
-      response = await fetch(url, authOptions);
+      response = await fetch(fullUrl, authOptions);
     } else {
       // Token refresh failed, clear auth and throw
       clearTokens();

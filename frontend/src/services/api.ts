@@ -1,5 +1,11 @@
 import { UserProfile } from '../App';
-import { authFetch, getAccessToken } from './auth';
+import { authFetch, getAccessToken, API_BASE_URL, getErrorMessage } from './auth';
+
+const getUrl = (path: string): string => {
+  return path.startsWith('http://') || path.startsWith('https://')
+    ? path
+    : `${API_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+};
 
 // Types for chat API
 export interface JobCardData {
@@ -97,15 +103,15 @@ export const uploadResume = async (file: File): Promise<UserProfile> => {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch('/api/onboardFileUpload', {
+  const response = await fetch(getUrl('/api/onboardFileUpload'), {
     method: 'POST',
     body: file,
     headers,
   });
 
   if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || 'Failed to upload resume');
+    const message = await getErrorMessage(response, 'Failed to upload resume');
+    throw new Error(message);
   }
 
   return response.json();
@@ -115,7 +121,7 @@ export const uploadResume = async (file: File): Promise<UserProfile> => {
  * @deprecated Use auth service login instead
  */
 export const signIn = async (email: string): Promise<SignInResponse> => {
-  const response = await fetch('/api/signIn', {
+  const response = await fetch(getUrl('/api/signIn'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -124,8 +130,8 @@ export const signIn = async (email: string): Promise<SignInResponse> => {
   });
 
   if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || 'Failed to sign in');
+    const message = await getErrorMessage(response, 'Failed to sign in');
+    throw new Error(message);
   }
 
   return response.json();
