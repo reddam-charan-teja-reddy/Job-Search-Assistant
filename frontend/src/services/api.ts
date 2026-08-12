@@ -92,11 +92,11 @@ const getAuthHeaders = (): Record<string, string> => {
 export const uploadResume = async (file: File): Promise<UserProfile> => {
   const token = getAccessToken();
   const headers: Record<string, string> = {};
-  
+
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
-  
+
   const response = await fetch('/api/onboardFileUpload', {
     method: 'POST',
     body: file,
@@ -340,7 +340,7 @@ export const getAppliedJobs = async (): Promise<{
 // ==================== USER PROFILE API FUNCTIONS ====================
 
 export const getUserProfile = async (): Promise<UserProfile> => {
-  const response = await authFetch('/api/userProfile');
+  const response = await authFetch('/api/profile');
 
   if (!response.ok) {
     const errorData = await response.json();
@@ -353,8 +353,8 @@ export const getUserProfile = async (): Promise<UserProfile> => {
 export const updateUserProfile = async (
   profileData: Partial<UserProfile>
 ): Promise<{ message: string }> => {
-  const response = await authFetch('/api/updateProfile', {
-    method: 'POST',
+  const response = await authFetch('/api/updateUserProfile', {
+    method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
     },

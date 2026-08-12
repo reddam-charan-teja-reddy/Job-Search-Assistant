@@ -128,17 +128,17 @@ export const login = async (
   }
 
   const data: LoginResponse = await response.json();
-  
+
   // Store tokens and user data
   setTokens(data.access_token, data.refresh_token);
   setStoredUser(data.user);
-  
+
   return data;
 };
 
 export const logout = async (): Promise<void> => {
   const token = getAccessToken();
-  
+
   if (token) {
     try {
       await fetch(`${API_BASE}/logout`, {
@@ -152,14 +152,14 @@ export const logout = async (): Promise<void> => {
       console.error('Logout request failed:', error);
     }
   }
-  
+
   // Clear local storage regardless of API response
   clearTokens();
 };
 
 export const refreshAccessToken = async (): Promise<string | null> => {
   const refreshToken = getRefreshToken();
-  
+
   if (!refreshToken) {
     return null;
   }
@@ -194,7 +194,7 @@ export const changePassword = async (
   confirmNewPassword: string
 ): Promise<{ message: string }> => {
   const token = getAccessToken();
-  
+
   if (!token) {
     throw new Error('Not authenticated');
   }
@@ -222,7 +222,7 @@ export const changePassword = async (
 
 export const validateToken = async (): Promise<boolean> => {
   const token = getAccessToken();
-  
+
   if (!token) {
     return false;
   }
@@ -248,7 +248,7 @@ export const validateToken = async (): Promise<boolean> => {
 
 export const getCurrentUser = async (): Promise<AuthUser | null> => {
   const token = getAccessToken();
-  
+
   if (!token) {
     return null;
   }
@@ -308,7 +308,7 @@ export const authFetch = async (
   // If unauthorized, try to refresh token and retry
   if (response.status === 401) {
     const newToken = await refreshAccessToken();
-    
+
     if (newToken) {
       authOptions.headers = {
         ...authOptions.headers,

@@ -39,3 +39,4 @@ venv.bak/
 # General
 .DS_Store
 Thumbs.db
+BACKEND_INTERVIEW_GUIDE.md

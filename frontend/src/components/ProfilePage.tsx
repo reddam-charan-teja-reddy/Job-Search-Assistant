@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -54,7 +54,7 @@ export default function ProfilePage({
     setIsUploadingResume(true);
     try {
       const extractedData = await uploadResume(file);
-      
+
       // Update form data with extracted resume data
       const updatedProfile: UserProfile = {
         ...formData,
@@ -68,21 +68,25 @@ export default function ProfilePage({
         resumeUploaded: true,
       };
 
-      // Save to backend
-      await updateUserProfile({
-        name: updatedProfile.name,
-        email: updatedProfile.email,
-        phone: updatedProfile.phone,
-        location: updatedProfile.location,
-        skills: updatedProfile.skills,
-        experience: updatedProfile.experience,
-        education: updatedProfile.education,
-        profile_summary: updatedProfile.profile_summary,
-      });
-
+      // Save to local state
       setFormData(updatedProfile);
       updateProfile(updatedProfile);
       toast.success('Resume uploaded and profile updated!');
+
+      // Sync to backend asynchronously
+      try {
+        await updateUserProfile({
+          name: updatedProfile.name,
+          phone: updatedProfile.phone,
+          location: updatedProfile.location,
+          skills: updatedProfile.skills,
+          experience: updatedProfile.experience,
+          education: updatedProfile.education,
+          profile_summary: updatedProfile.profile_summary,
+        });
+      } catch (syncError) {
+        console.error('Error syncing resume profile update to backend:', syncError);
+      }
     } catch (error) {
       console.error('Error uploading resume:', error);
       toast.error('Failed to upload resume. Please try again.');
@@ -219,6 +223,22 @@ export default function ProfilePage({
     updateProfile(formData);
     setIsEditing(false);
     toast.success('Profile updated successfully');
+
+    // Sync updates to backend API
+    updateUserProfile({
+      name: formData.name,
+      phone: formData.phone,
+      location: formData.location,
+      skills: formData.skills,
+      experience: formData.experience,
+      education: formData.education,
+      profile_summary: formData.profile_summary,
+      certificationsAndAchievementsAndAwards: formData.certificationsAndAchievementsAndAwards,
+      projects: formData.projects,
+      about: formData.about,
+    }).catch((error) => {
+      console.error('Error syncing profile update to backend:', error);
+    });
   };
 
   const handleCancel = () => {
